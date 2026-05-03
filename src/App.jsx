@@ -616,9 +616,12 @@ export default function App() {
                         {diaryEntries.map(e => (
                           <div key={e.id} onClick={() => handleEditEntry(e)} className="relative cursor-pointer group active:scale-[0.98] transition-transform">
                             <div className="absolute -left-[31px] top-2 w-4 h-4 rounded-full bg-amber-400 border-4 border-[#FFFCF5] shadow-md group-hover:scale-125 transition-transform" />
-                            {/* [수정 완벽 반영] 다이어리 뷰 종료시간 추가 */}
-                            <div className="text-[12px] font-black text-amber-600/70 font-mono mb-2.5 uppercase tracking-widest">
-                              {formatTime(e.timestamp)}{e.endTime && ` ~ ${e.endTime}`} — {e.title || getCategory(e.categoryId).label}
+                            {/* [수정 완벽 반영] 다이어리 뷰: 제목이 먼저 나오고 다음 줄에 시간이 표시됨 */}
+                            <div className="text-[16px] font-black text-amber-900 mb-1 tracking-tight">
+                              {e.title || getCategory(e.categoryId).label}
+                            </div>
+                            <div className="text-[11px] font-black text-amber-600/70 font-mono mb-3 uppercase tracking-widest">
+                              {formatTime(e.timestamp)}{e.endTime && ` ~ ${e.endTime}`}
                             </div>
                             <p className="text-[17px] text-gray-700 leading-loose font-diary font-bold">{e.content}</p>
                           </div>
@@ -773,17 +776,17 @@ export default function App() {
                       <div className="bg-gray-50 p-4 rounded-[28px] border border-gray-100 space-y-3">
                         <div className="relative flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
                           <div className="pl-5 text-indigo-400"><CalendarDays size={20} /></div>
-                          <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="w-full px-4 py-4 bg-transparent border-none font-black text-[16px] appearance-none focus:outline-none transition-colors" />
+                          <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="w-full px-4 py-4 bg-transparent border-none font-black text-gray-900 text-[16px] appearance-none focus:outline-none transition-colors" />
                         </div>
                         {/* [수정 완벽 반영] Grid 2등분으로 좁은 모바일 화면에서도 삐져나가지 않게 배치 */}
                         <div className="grid grid-cols-2 gap-3">
                           <div className="relative flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
                             <div className="absolute left-4 text-[11px] font-black text-gray-400">시작</div>
-                            <input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} className="w-full pl-12 pr-2 py-4 bg-transparent border-none font-black text-[15px] appearance-none focus:outline-none text-center" />
+                            <input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} className="w-full pl-12 pr-2 py-4 bg-transparent border-none font-black text-gray-900 text-[15px] appearance-none focus:outline-none text-center" />
                           </div>
                           <div className="relative flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
                             <div className="absolute left-4 text-[11px] font-black text-gray-400">종료</div>
-                            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full pl-12 pr-2 py-4 bg-transparent border-none font-black text-[15px] appearance-none focus:outline-none text-center" />
+                            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full pl-12 pr-2 py-4 bg-transparent border-none font-black text-gray-900 text-[15px] appearance-none focus:outline-none text-center" />
                           </div>
                         </div>
                       </div>
