@@ -276,7 +276,7 @@ export default function App() {
     setCategories(newList);
     try {
       await setDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'settings', 'userCategories'), { list: newList });
-      showToast("카테고리 삭제 완료");
+      showToast("카테고 삭제 완료");
     } catch (err) { showToast("삭제 실패", "error"); }
   };
 
@@ -577,7 +577,7 @@ export default function App() {
                         const isSelected = getLocalDateString(d) === getLocalDateString(selectedDate);
                         return (
                           <button key={i} onClick={() => { setSelectedDate(d); setViewMode('pieces'); }} className={`h-12 relative flex items-center justify-center group rounded-2xl transition-all ${isSelected?'bg-indigo-50/70 shadow-inner':''}`}>
-                            {/* 성취도(원형 배경 + 체크마크) 시인성 강화 */}
+                            {/* 성취도(원형 배경 + 체크마크) 시인성 강화 (투명도 제거 및 그림자 추가) */}
                             {status && (
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <div className={`w-10 h-10 rounded-full ${status.bg} shadow-sm group-hover:scale-110 transition-transform`} />
