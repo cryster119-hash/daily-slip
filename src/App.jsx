@@ -6,13 +6,13 @@ import {
   ChevronLeft, ChevronRight, CalendarDays, Cloud, CloudOff, User
 } from 'lucide-react';
 
-// --- Firebase 실전 연동 (Vite 환경용) ---
+// --- Firebase 실전 연동 ---
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
 
 // ==========================================
-// 💡 [중요] 파이어베이스에서 복사한 firebaseConfig 내용을 아래에 덮어씌우세요!
+// 💡 [필수] 아래에 본인의 파이어베이스 설정값을 꼭 덮어씌워 주세요!
 // ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyCeGzssX8tPn2tsFyBw9kGSBWUDOskC-1I",
@@ -23,10 +23,9 @@ const firebaseConfig = {
   appId: "1:171448664939:web:42c1846f1caccfc403822e"
 };
 
-// 파이어베이스 초기화 (Config가 비어있으면 에러가 날 수 있으니 꼭 채워주세요)
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app) ;
+const db = getFirestore(app);
 
 // 아이콘 및 색상 설정
 const AVAILABLE_ICONS = [
@@ -77,8 +76,7 @@ export default function App() {
 
   // 1. 로그인 (익명 로그인 자동 처리)
   useEffect(() => {
-    // Config가 유효할 때만 로그인 시도
-    if (firebaseConfig.apiKey !== "여기에_복사한_값_넣기") {
+    if (firebaseConfig.apiKey !== "여기에_값을_넣어주세요") {
       signInAnonymously(auth).catch(error => console.error("로그인 에러:", error));
     }
     
@@ -100,12 +98,11 @@ export default function App() {
     resetToCurrentTime();
   }, []);
 
-  // 3. 파이어베이스 데이터 실시간 동기화 (전표 & 카테고리)
+  // 3. 파이어베이스 데이터 실시간 동기화
   useEffect(() => {
     if (!user) return;
     setIsSyncing(true);
 
-    // 전표 불러오기 (실시간)
     const entriesRef = collection(db, 'users', user.uid, 'entries');
     const unsubEntries = onSnapshot(entriesRef, (snapshot) => {
       const fetchedEntries = [];
@@ -113,12 +110,8 @@ export default function App() {
       fetchedEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       setEntries(fetchedEntries);
       setIsSyncing(false);
-    }, (error) => {
-      console.error("데이터 동기화 에러:", error);
-      setIsSyncing(false);
     });
 
-    // 커스텀 카테고리 불러오기 (실시간)
     const settingsRef = doc(db, 'users', user.uid, 'settings', 'userCategories');
     const unsubCategories = onSnapshot(settingsRef, (docSnap) => {
       if (docSnap.exists() && docSnap.data().list) {
@@ -155,7 +148,6 @@ export default function App() {
 
   const removeTag = (tagToRemove) => setTags(tags.filter(tag => tag !== tagToRemove));
 
-  // 전표 DB에 저장
   const handleAddEntry = async () => {
     if (!selectedCategoryId || !content.trim() || !user) return;
 
@@ -182,10 +174,7 @@ export default function App() {
     };
 
     try {
-      // Firebase에 저장
-      const entryRef = doc(collection(db, 'users', user.uid, 'entries'), entryId);
-      await setDoc(entryRef, newEntry);
-      
+      await setDoc(doc(collection(db, 'users', user.uid, 'entries'), entryId), newEntry);
       setSelectedDate(new Date(combinedDateTimeString));
       setSelectedCategoryId(null);
       setContent('');
@@ -193,46 +182,32 @@ export default function App() {
       setTagInput('');
       resetToCurrentTime();
     } catch (error) {
-      console.error("저장 실패:", error);
       alert("데이터베이스 저장에 실패했습니다.");
     }
   };
 
-  // 전표 DB에서 삭제
   const handleDeleteEntry = async (id) => {
     if (!user || !window.confirm('이 기록을 삭제하시겠습니까?')) return;
-    try {
-      await deleteDoc(doc(db, 'users', user.uid, 'entries'), id);
-    } catch (error) {
-      console.error("삭제 실패:", error);
-    }
+    await deleteDoc(doc(db, 'users', user.uid, 'entries'), id);
   };
 
-  // 카테고리 DB 업데이트
   const updateCategoriesInDB = async (newCategories) => {
     if (!user) return;
-    try {
-      const settingsRef = doc(db, 'users', user.uid, 'settings', 'userCategories');
-      await setDoc(settingsRef, { list: newCategories }, { merge: true });
-    } catch (error) {
-      console.error("카테고리 업데이트 실패:", error);
-    }
+    await setDoc(doc(db, 'users', user.uid, 'settings', 'userCategories'), { list: newCategories }, { merge: true });
   };
 
   const handleAddCategory = (e) => {
     e.preventDefault();
     if (!newCatLabel.trim()) return;
     const newCategory = { id: `cat_${Date.now()}`, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor };
-    const updatedCategories = [...categories, newCategory];
-    updateCategoriesInDB(updatedCategories); // 로컬 대신 DB로 동기화
+    updateCategoriesInDB([...categories, newCategory]);
     setNewCatLabel('');
   };
 
   const handleDeleteCategory = (id) => {
     if (entries.some(e => e.categoryId === id)) return alert("이 카테고리를 사용하는 기록이 있어 삭제할 수 없습니다.");
     if(window.confirm('카테고리를 삭제하시겠습니까?')) {
-      const updatedCategories = categories.filter(c => c.id !== id);
-      updateCategoriesInDB(updatedCategories);
+      updateCategoriesInDB(categories.filter(c => c.id !== id));
       if (selectedCategoryId === id) setSelectedCategoryId(null);
     }
   };
@@ -412,7 +387,6 @@ export default function App() {
               <section className="p-4 flex-1">
                 {viewMode === 'timeline' && (
                   <div className="flex flex-col h-full pb-8">
-                    {/* 달력 오버레이 적용된 헤더 */}
                     <div className="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm border border-gray-100 mb-6 shrink-0 sticky top-0 z-10">
                       <button onClick={() => changeDate(-1)} className="p-2 hover:bg-gray-100 rounded-xl"><ChevronLeft size={20} className="text-gray-600" /></button>
                       <div className="relative flex flex-col items-center cursor-pointer px-4 group">
