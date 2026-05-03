@@ -333,7 +333,7 @@ export default function App() {
     return { 
       badge: cat.color.split(' ')[1].replace('text-', 'bg-'), 
       bg: cat.color.split(' ')[0],
-      text: cat.color.split(' ')[1] // 날짜 텍스트 강조용 색상 추가
+      text: cat.color.split(' ')[1] // 가시성 강화를 위한 텍스트 색상
     };
   };
 
@@ -546,7 +546,6 @@ export default function App() {
                           <div key={e.id} onClick={() => handleEditEntry(e)} className="relative cursor-pointer group active:scale-[0.98] transition-transform">
                             <div className="absolute -left-[31px] top-2 w-4 h-4 rounded-full bg-amber-400 border-4 border-[#FFFCF5] shadow-md group-hover:scale-125 transition-transform" />
                             <div className="text-[12px] font-black text-amber-600/70 font-mono mb-2.5 uppercase tracking-widest">{formatTime(e.timestamp)} — {e.title || getCategory(e.categoryId).label}</div>
-                            {/* 아기자기한 다이어리 폰트 적용 (고운돋움) */}
                             <p className="text-[17px] text-gray-700 leading-loose font-diary font-bold">{e.content}</p>
                           </div>
                         ))}
@@ -557,6 +556,7 @@ export default function App() {
 
               {viewMode === 'calendar' && (
                 <div className="space-y-8">
+                  {/* 테두리 잘림 해결을 위한 px-2 -mx-2 및 pt-2 적용 */}
                   <div className="flex overflow-x-auto gap-3 pt-2 pb-4 hide-scrollbar px-2 -mx-2">
                     {categories.map(c => (
                       <button key={c.id} onClick={() => setCalendarCategory(c.id)} className={`shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-black border transition-all ${calendarCategory === c.id ? `${c.color} border-transparent ring-2 ring-indigo-200 shadow-xl` : 'bg-white text-gray-400 border-gray-100 shadow-sm'}`}>{c.label}</button>
@@ -568,7 +568,7 @@ export default function App() {
                       <h3 className="font-black text-2xl tracking-tighter">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
                       <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()+1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300"><ChevronRight size={28}/></button>
                     </div>
-                    <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={`text-[12px] font-black ${d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300 uppercase'}`}>{d}</div>)}</div>
+                    <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={`text-[11px] font-black ${d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300 uppercase'}`}>{d}</div>)}</div>
                     <div className="grid grid-cols-7 gap-y-5">
                       {calendarDays.map((d,i) => {
                         if (!d) return <div key={i} className="h-12" />;
@@ -577,12 +577,14 @@ export default function App() {
                         const isSelected = getLocalDateString(d) === getLocalDateString(selectedDate);
                         return (
                           <button key={i} onClick={() => { setSelectedDate(d); setViewMode('pieces'); }} className={`h-12 relative flex items-center justify-center group rounded-2xl transition-all ${isSelected?'bg-indigo-50/70 shadow-inner':''}`}>
+                            {/* 성취도(원형 배경 + 체크마크) 시인성 강화 */}
                             {status && (
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <div className={`w-10 h-10 rounded-full ${status.bg} shadow-sm group-hover:scale-110 transition-transform`} />
                                 <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full ${status.badge} border-2 border-white flex items-center justify-center shadow-md`}><Check size={12} strokeWidth={4} className="text-white" /></div>
                               </div>
                             )}
+                            {/* 색상이 있는 날짜는 해당 카테고리 색상 적용, 오늘은 인디고 테두리 */}
                             <span className={`text-[16px] font-black z-10 transition-colors ${status ? status.text : (isToday ? 'text-indigo-600 ring-2 ring-indigo-100 rounded-full w-9 h-9 flex items-center justify-center' : 'text-gray-700')}`}>{d.getDate()}</span>
                           </button>
                         );
@@ -632,7 +634,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 작성 시트 */}
         {/* 작성/수정 시트 */}
         {isSheetOpen && (
           <div className="absolute inset-0 z-50 flex flex-col justify-end">
@@ -657,7 +658,6 @@ export default function App() {
                 {selectedCategoryId && (
                   <div className="space-y-7 px-1 pb-10">
                     <div className="flex bg-gray-100 p-2 rounded-[24px]">
-                      {/* [수정됨] 소요 범위 -> 시간 설정으로 텍스트 변경 */}
                       {[{ id: 'range', label: '시간 설정', icon: ClockArrowUp }, { id: 'none', label: '시간 생략', icon: Zap }].map(m => (
                         <button key={m.id} onClick={() => setTimeMode(m.id)} className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-[14px] font-black rounded-[20px] transition-all ${timeMode === m.id ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400'}`}>
                           <m.icon size={18} strokeWidth={2.5}/> {m.label}
@@ -665,8 +665,7 @@ export default function App() {
                       ))}
                     </div>
                     
-                    {/* [수정됨] 날짜와 시간이 한눈에 보이게 묶어주는 통일된 박스 UI 적용 */}
-                    {timeMode === 'range' && (
+                    {timeMode !== 'none' && (
                       <div className="bg-gray-50 p-4 rounded-[28px] border border-gray-100 space-y-3">
                         <div className="relative flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
                           <div className="pl-5 text-indigo-400"><CalendarDays size={20} /></div>
@@ -692,12 +691,12 @@ export default function App() {
                        <div className="flex flex-wrap gap-2.5">
                          {tags.map((t,i) => <span key={i} className="bg-white border border-gray-200 px-4 py-2 rounded-[16px] text-xs font-black flex items-center gap-2 shadow-sm">{t}<button onClick={() => setTags(tags.filter(item => item !== t))} className="text-red-400 active:scale-75 transition-transform"><X size={16} strokeWidth={3}/></button></span>)}
                          <input type="text" value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ',') {
+                            if (e.key === 'Enter' || e.key === ' ' || e.key === ',') {
                               e.preventDefault(); const nt = tagInput.trim().replace(/^#/, '');
                               if (nt && !tags.includes(nt)) setTags([...tags, nt]);
                               setTagInput('');
                             }
-                         }} placeholder="Enter로 태그 추가" className="flex-1 bg-transparent outline-none text-[15px] font-black min-w-[120px]" />
+                         }} placeholder="Enter, 공백, 쉼표로 태그 추가" className="flex-1 bg-transparent outline-none text-[15px] font-black min-w-[120px]" />
                        </div>
                     </div>
                     
