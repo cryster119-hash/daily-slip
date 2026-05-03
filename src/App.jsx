@@ -5,7 +5,9 @@ import {
   Settings, ChevronLeft, ChevronRight, Cloud, CloudOff,
   BarChart2, Zap, ClockArrowUp, Layers, Target,
   BookOpen, AlignLeft, Sparkles, Search, Filter, Calendar,
-  ShieldCheck, FileText, Pencil, AlertCircle, Download, LogOut
+  ShieldCheck, FileText, Pencil, AlertCircle, Download, LogOut,
+  Wine, Beer, Monitor, Laptop, Home, ShoppingBag, 
+  Utensils, Music, Heart, Moon, Car, Gamepad2
 } from 'lucide-react';
 
 // --- Firebase 임포트 ---
@@ -49,6 +51,12 @@ const AVAILABLE_ICONS = [
   { name: 'Dumbbell', component: Dumbbell }, { name: 'Book', component: Book },
   { name: 'Coffee', component: Coffee }, { name: 'Briefcase', component: Briefcase },
   { name: 'Smile', component: Smile }, { name: 'Hash', component: Hash },
+  { name: 'Wine', component: Wine }, { name: 'Beer', component: Beer },
+  { name: 'Utensils', component: Utensils }, { name: 'Laptop', component: Laptop },
+  { name: 'Monitor', component: Monitor }, { name: 'Home', component: Home },
+  { name: 'ShoppingBag', component: ShoppingBag }, { name: 'Music', component: Music },
+  { name: 'Gamepad2', component: Gamepad2 }, { name: 'Car', component: Car },
+  { name: 'Heart', component: Heart }, { name: 'Moon', component: Moon }
 ];
 
 const defaultCategories = [
@@ -129,8 +137,8 @@ export default function App() {
   const [entryTime, setEntryTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
-  // 설정 화면(카테고리) 폼
-  const [editingCategoryId, setEditingCategoryId] = useState(null); // 수정 중인 카테고리 ID
+  // 설정 화면 폼
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [newCatLabel, setNewCatLabel] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('Hash');
   const [newCatColor, setNewCatColor] = useState(AVAILABLE_COLORS[0]);
@@ -172,7 +180,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    if(!confirm("로그아웃 하시겠습니까?")) return;
+    if(!window.confirm("로그아웃 하시겠습니까?")) return;
     try {
       await signOut(auth);
       setIsManagingCategories(false);
@@ -213,7 +221,7 @@ export default function App() {
   const formatTime = (ts) => new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ts));
 
   const getCategory = (id) => {
-    const cat = categories.find(c => c.id === id) || { label: '알 수 없음', color: 'bg-gray-100 text-gray-400', iconName: 'Hash' };
+    const cat = categories.find(c => c.id === id) || { label: '미정', color: 'bg-gray-100 text-gray-400', iconName: 'Hash' };
     const iconObj = AVAILABLE_ICONS.find(i => i.name === cat.iconName) || AVAILABLE_ICONS[5];
     return { ...cat, Icon: iconObj.component };
   };
@@ -281,34 +289,27 @@ export default function App() {
     } catch (e) { showToast("삭제 에러", "error"); }
   };
 
-  // --- 카테고리(활동) 관리 함수 ---
   const saveCategory = async (e) => {
     e.preventDefault();
     if (!newCatLabel.trim() || !user) return;
-    
     let newList;
     if (editingCategoryId) {
-      // 기존 카테고리 수정 (수정 시 과거의 모든 데이터도 자동 반영됨)
-      newList = categories.map(c => 
-        c.id === editingCategoryId ? { ...c, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor } : c
-      );
+      newList = categories.map(c => c.id === editingCategoryId ? { ...c, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor } : c);
     } else {
-      // 새 카테고리 추가
       newList = [...categories, { id: `cat_${Date.now()}`, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor }];
     }
-
     setCategories(newList);
     try {
       await setDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'settings', 'userCategories'), { list: newList });
       setNewCatLabel('');
-      setEditingCategoryId(null); // 수정 모드 초기화
+      setEditingCategoryId(null);
       showToast(editingCategoryId ? "활동이 수정되었습니다" : "새 활동이 추가되었습니다");
     } catch (err) { showToast("저장 실패", "error"); }
   };
 
   const deleteCategory = async (id) => {
     if(entries.some(e => e.categoryId === id)) return showToast("기록이 있는 항목은 삭제 불가", "error");
-    if(!confirm('카테고리를 삭제하시겠습니까?')) return;
+    if(!window.confirm('카테고리를 삭제하시겠습니까?')) return;
     const newList = categories.filter(c => c.id !== id);
     setCategories(newList);
     try {
@@ -419,7 +420,6 @@ export default function App() {
           먼저 둘러보기 (게스트)
         </button>
 
-        {/* 로그인 화면용 토스트 알림 */}
         {toast && (
           <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-top-6 duration-400">
             <div className={`px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 border ${toast.type === 'success' ? 'bg-white text-indigo-600 border-indigo-100' : 'bg-white text-rose-600 border-rose-100'}`}>
@@ -460,11 +460,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             {user.photoURL && <img src={user.photoURL} alt="profile" className="w-9 h-9 rounded-full border border-gray-100 shadow-sm" />}
-            <button onClick={() => {
-              setIsManagingCategories(true);
-              setEditingCategoryId(null);
-              setNewCatLabel('');
-            }} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-all active:scale-90"><Settings size={22} /></button>
+            <button onClick={() => { setIsManagingCategories(true); setEditingCategoryId(null); setNewCatLabel(''); }} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-all active:scale-90"><Settings size={22} /></button>
           </div>
         </header>
 
@@ -476,13 +472,23 @@ export default function App() {
             </div>
             
             <section className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 mb-8 space-y-5">
-              <h3 className="text-xs font-black text-indigo-500 tracking-wider flex items-center gap-1.5 uppercase">
-                <Sparkles size={14}/> {editingCategoryId ? '활동 수정 (과거 기록 자동 반영)' : '새 활동 추가'}
-              </h3>
+              <h3 className="text-xs font-black text-indigo-500 tracking-wider flex items-center gap-1.5 uppercase"><Sparkles size={14}/> {editingCategoryId ? '활동 수정 (과거 기록 자동 반영)' : '새 활동 추가'}</h3>
               <form onSubmit={saveCategory} className="space-y-5">
                 <input type="text" value={newCatLabel} onChange={e => setNewCatLabel(e.target.value)} placeholder="항목 이름 (예: 명상, 독서)" maxLength={10} className="w-full px-5 py-4 bg-gray-50 rounded-2xl border-none font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-lg" />
-                <div className="flex gap-2.5 flex-wrap">{AVAILABLE_ICONS.map(i => (<button key={i.name} type="button" onClick={() => setNewCatIcon(i.name)} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${newCatIcon === i.name ? 'bg-indigo-100 text-indigo-600 shadow-inner ring-2 ring-indigo-200' : 'bg-gray-50 text-gray-400'}`}><i.component size={20}/></button>))}</div>
-                <div className="flex gap-3 flex-wrap">{AVAILABLE_COLORS.map(c => <button key={c} type="button" onClick={() => setNewCatColor(c)} className={`w-8 h-8 rounded-full border-2 transition-transform ${c.split(' ')[0]} ${newCatColor === c ? 'border-gray-800 scale-125 shadow-lg' : 'border-transparent'}`} />)}</div>
+                
+                <div className="flex gap-2.5 flex-wrap">
+                  {AVAILABLE_ICONS.map(i => (
+                    <button key={i.name} type="button" onClick={() => setNewCatIcon(i.name)} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${newCatIcon === i.name ? 'bg-indigo-100 text-indigo-600 shadow-inner ring-2 ring-indigo-200 scale-110' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}>
+                      <i.component size={20}/>
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="flex gap-3 flex-wrap">
+                  {AVAILABLE_COLORS.map(c => (
+                    <button key={c} type="button" onClick={() => setNewCatColor(c)} className={`w-8 h-8 rounded-full border-2 transition-transform ${c.split(' ')[0]} ${newCatColor === c ? 'border-gray-800 scale-125 shadow-lg' : 'border-transparent'}`} />
+                  ))}
+                </div>
                 
                 <div className="flex gap-2">
                   <button type="submit" disabled={!newCatLabel.trim()} className="flex-1 bg-indigo-600 text-white py-4.5 rounded-2xl font-black active:scale-95 transition-all shadow-xl shadow-indigo-100">
@@ -497,27 +503,21 @@ export default function App() {
 
             <div className="flex-1 space-y-3 mb-8">
               <h3 className="text-xs font-bold text-gray-400 mb-2 ml-1 tracking-wider uppercase">My Categories</h3>
-              {categories.map(cat => (
-                <div key={cat.id} className="flex items-center justify-between p-4.5 bg-white border border-gray-100 rounded-[24px] shadow-sm transition-all active:bg-gray-50">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 flex items-center justify-center rounded-2xl ${cat.color}`}>
-                      {(() => { const CatIcon = getCategory(cat.id).Icon; return <CatIcon size={20} strokeWidth={2.5}/> })()}
+              {categories.map(cat => {
+                const CatIcon = getCategory(cat.id).Icon;
+                return (
+                  <div key={cat.id} className="flex items-center justify-between p-4.5 bg-white border border-gray-100 rounded-[24px] shadow-sm transition-all active:bg-gray-50">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 flex items-center justify-center rounded-2xl ${cat.color}`}><CatIcon size={20} strokeWidth={2.5}/></div>
+                      <span className="font-bold text-gray-800 text-lg">{cat.label}</span>
                     </div>
-                    <span className="font-bold text-gray-800 text-lg">{cat.label}</span>
+                    <div className="flex gap-1">
+                      <button onClick={() => { setEditingCategoryId(cat.id); setNewCatLabel(cat.label); setNewCatIcon(cat.iconName); setNewCatColor(cat.color); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-2 text-gray-300 hover:text-indigo-500 active:scale-90 transition-all"><Pencil size={20}/></button>
+                      <button onClick={() => deleteCategory(cat.id)} className="p-2 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    {/* 카테고리 편집(연필) 버튼 추가 */}
-                    <button onClick={() => {
-                      setEditingCategoryId(cat.id);
-                      setNewCatLabel(cat.label);
-                      setNewCatIcon(cat.iconName);
-                      setNewCatColor(cat.color);
-                      window.scrollTo({ top: 0, behavior: 'smooth' }); // 상단 폼으로 스크롤 이동
-                    }} className="p-2 text-gray-300 hover:text-indigo-500 active:scale-90 transition-all"><Pencil size={20}/></button>
-                    <button onClick={() => deleteCategory(cat.id)} className="p-2 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             <section className="mb-10 space-y-4">
@@ -588,7 +588,7 @@ export default function App() {
                                 <div className={`w-12 h-12 rounded-[18px] flex items-center justify-center ${cat.color} shadow-sm border border-white/20`}><cat.Icon size={22} strokeWidth={2.5} /></div>
                                 <div><div className="text-[11px] font-black text-gray-400 uppercase tracking-tighter">{cat.label}</div><div className="text-[14px] font-mono font-bold text-indigo-500 mt-0.5">{formatTime(e.timestamp)}</div></div>
                               </div>
-                              <button onClick={(ev) => handleDeleteEntry(ev, e.id)} className="p-2.5 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
+                              <button onClick={(ev) => handleDelete(ev, e.id)} className="p-2.5 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
                             </div>
                             <div className="pl-[64px]">
                               {e.title && <h4 className="text-[18px] font-black text-gray-900 mb-2 leading-tight tracking-tight">{e.title}</h4>}
@@ -606,7 +606,9 @@ export default function App() {
               {viewMode === 'diary' && (
                 <div className="bg-[#FFFCF5] rounded-[40px] border border-amber-100 p-8 shadow-sm min-h-[550px] relative overflow-hidden">
                    <div className="absolute top-0 left-8 right-8 h-1.5 flex justify-around -mt-0.5 opacity-30"><div className="w-3 h-5 bg-gray-400 rounded-full shadow-sm"></div><div className="w-3 h-5 bg-gray-400 rounded-full shadow-sm"></div><div className="w-3 h-5 bg-gray-400 rounded-full shadow-sm"></div></div>
-                   <h2 className="text-center text-2xl font-black mb-14 tracking-tighter text-amber-900/40 uppercase font-mono">{selectedDate.getDate()} — DIARY</h2>
+                   <h2 className="text-center text-2xl font-black mb-14 tracking-widest text-amber-900/40 uppercase font-mono">
+                     {new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).format(selectedDate).toUpperCase()}
+                   </h2>
                    {diaryEntries.length === 0 ? <p className="text-center text-gray-300 py-32 font-black text-sm tracking-widest uppercase">Empty Day</p> : (
                      <div className="space-y-12 relative border-l-2 border-amber-200/40 ml-2 pl-8 pb-10">
                         {diaryEntries.map(e => (
@@ -623,10 +625,16 @@ export default function App() {
 
               {viewMode === 'calendar' && (
                 <div className="space-y-8">
-                  <div className="flex overflow-x-auto gap-3 pt-2 pb-4 hide-scrollbar px-2 -mx-2">
-                    {categories.map(c => (
-                      <button key={c.id} onClick={() => setCalendarCategory(c.id)} className={`shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-black border transition-all m-1.5 ${calendarCategory === c.id ? `${c.color} border-transparent ring-2 ring-indigo-200 shadow-xl` : 'bg-white text-gray-400 border-gray-100 shadow-sm'}`}>{c.label}</button>
-                    ))}
+                  <div className="flex flex-wrap gap-2 pt-2 pb-4 px-1">
+                    {categories.map(c => {
+                      const CatIcon = getCategory(c.id).Icon;
+                      return (
+                        <button key={c.id} onClick={() => setCalendarCategory(c.id)} className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-black border transition-all ${calendarCategory === c.id ? `${c.color} border-transparent ring-2 ring-indigo-200 shadow-md` : 'bg-white text-gray-500 border-gray-200 shadow-sm hover:bg-gray-50'}`}>
+                          <CatIcon size={14} strokeWidth={2.5}/>
+                          {c.label}
+                        </button>
+                      );
+                    })}
                   </div>
                   <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-xl shadow-indigo-50/20">
                     <div className="flex justify-between items-center mb-10 px-2">
@@ -646,9 +654,7 @@ export default function App() {
                             {catStatus && (
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <div className={`w-10 h-10 rounded-full ${catStatus.color.split(' ')[0]} shadow-sm group-hover:scale-110 transition-transform`} />
-                                <div className={`absolute -top-1 -right-1 w-5.5 h-5.5 rounded-full ${getSolidColor(catStatus.color)} border-2 border-white flex items-center justify-center shadow-md`}>
-                                  <Check size={12} strokeWidth={4} className="text-white" />
-                                </div>
+                                <div className={`absolute -top-1 -right-1 w-5.5 h-5.5 rounded-full ${getSolidColor(catStatus.color)} border-2 border-white flex items-center justify-center shadow-md`}><Check size={12} strokeWidth={4} className="text-white" /></div>
                               </div>
                             )}
                             <span className={`text-[16px] font-black z-10 transition-colors ${catStatus ? getTextColor(catStatus.color) : (isToday ? 'text-indigo-600 ring-2 ring-indigo-100 rounded-full w-9 h-9 flex items-center justify-center' : 'text-gray-700')}`}>{d.getDate()}</span>
@@ -670,9 +676,18 @@ export default function App() {
               {viewMode === 'search' && (
                 <div className="space-y-8">
                   <div className="relative"><Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300" size={22} strokeWidth={3}/><input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="기록 제목, 태그, 본문 검색" className="w-full pl-14 pr-8 py-5 bg-white rounded-[28px] shadow-xl font-black border-none focus:ring-2 focus:ring-indigo-500 transition-all text-lg" /></div>
-                  <div className="flex overflow-x-auto gap-3 pt-2 pb-4 hide-scrollbar px-2 -mx-2">
-                    <button onClick={() => setSearchCategory('all')} className={`shrink-0 px-6 py-3 rounded-2xl text-[14px] font-black transition-all m-1.5 ${searchCategory === 'all' ? 'bg-gray-900 text-white shadow-xl' : 'bg-white text-gray-400 border border-gray-100 shadow-sm'}`}>전체보기</button>
-                    {categories.map(c => (<button key={c.id} onClick={() => setSearchCategory(c.id)} className={`shrink-0 px-6 py-3 rounded-2xl text-[14px] font-black border transition-all m-1.5 ${searchCategory === c.id ? `${c.color} border-transparent shadow-xl` : 'bg-white text-gray-400 border border-gray-100 shadow-sm'}`}>{c.label}</button>))}
+                  
+                  <div className="flex flex-wrap gap-2 pt-2 pb-4 px-1">
+                    <button onClick={() => setSearchCategory('all')} className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-black transition-all ${searchCategory === 'all' ? 'bg-gray-900 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200 shadow-sm hover:bg-gray-50'}`}>전체보기</button>
+                    {categories.map(c => {
+                      const CatIcon = getCategory(c.id).Icon;
+                      return (
+                        <button key={c.id} onClick={() => setSearchCategory(c.id)} className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-black border transition-all ${searchCategory === c.id ? `${c.color} border-transparent shadow-md ring-2 ring-indigo-200` : 'bg-white text-gray-500 border-gray-200 shadow-sm hover:bg-gray-50'}`}>
+                          <CatIcon size={14} strokeWidth={2.5}/>
+                          {c.label}
+                        </button>
+                      );
+                    })}
                   </div>
                   {Object.entries(searchResults).length === 0 ? <div className="py-32 text-center text-gray-300 font-bold tracking-widest uppercase text-xs">No Matches Found</div> : Object.entries(searchResults).map(([date, items]) => (
                     <div key={date}>
@@ -682,7 +697,6 @@ export default function App() {
                           const cat = getCategory(item.categoryId);
                           return (
                             <div key={item.id} onClick={() => handleEditEntry(item)} className="p-6 flex gap-5 hover:bg-gray-50 active:bg-gray-50 transition-all cursor-pointer relative group">
-                              {/* [수정 완벽 반영] 검색뷰에서도 해당 카테고리 본연의 아이콘(아령, 책 등)이 표시됨 */}
                               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${cat.color} shadow-sm border border-white/20`}><cat.Icon size={22} strokeWidth={2.5}/></div>
                               <div className="flex-1 min-w-0"><div className="text-[17px] font-black text-gray-800 truncate leading-snug tracking-tight">{item.title || "무제"}</div><p className="text-[14px] text-gray-500 line-clamp-1 mt-1 font-medium">{item.content}</p></div>
                               <button onClick={(ev) => handleDeleteEntry(ev, item.id)} className="p-2 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
@@ -718,11 +732,17 @@ export default function App() {
                    <button onClick={() => { setEditingId(null); handleOpenSheet(); }} className="text-[12px] font-black bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-full active:scale-95 transition-all">지금 시간</button>
                 </div>
                 
-                <div className="flex overflow-x-auto gap-3 pt-2 pb-8 hide-scrollbar px-2 -mx-2">
-                   {categories.map(c => (
-                     <button key={c.id} onClick={() => setSelectedCategoryId(c.id)} className={`shrink-0 flex items-center gap-3 px-6 py-4 rounded-[22px] text-[16px] font-black border transition-all m-1.5 ${selectedCategoryId === c.id ? `${c.color} border-transparent ring-2 ring-indigo-500 shadow-2xl` : 'bg-white text-gray-500 border-gray-100 shadow-sm'}`}>{c.label}</button>
-                   ))}
-                   <button onClick={() => { setIsSheetOpen(false); setIsManagingCategories(true); setEditingCategoryId(null); setNewCatLabel(''); }} className="shrink-0 flex items-center justify-center px-7 py-4 rounded-[22px] border border-dashed border-gray-300 text-gray-400 font-black text-[16px] bg-gray-50/50 m-1.5">+ 활동 관리</button>
+                <div className="flex flex-wrap gap-2.5 pt-2 pb-8 px-1">
+                   {categories.map(c => {
+                     const CatIcon = getCategory(c.id).Icon;
+                     return (
+                       <button key={c.id} onClick={() => setSelectedCategoryId(c.id)} className={`flex items-center gap-2 px-5 py-3 rounded-full text-[15px] font-black border transition-all ${selectedCategoryId === c.id ? `${c.color} border-transparent ring-2 ring-indigo-500 shadow-lg scale-105` : 'bg-white text-gray-500 border-gray-200 shadow-sm hover:bg-gray-50'}`}>
+                         <CatIcon size={16} strokeWidth={2.5}/>
+                         {c.label}
+                       </button>
+                     );
+                   })}
+                   <button onClick={() => { setIsSheetOpen(false); setIsManagingCategories(true); setEditingCategoryId(null); setNewCatLabel(''); }} className="flex items-center justify-center px-5 py-3 rounded-full border border-dashed border-gray-300 text-gray-400 font-black text-[14px] bg-gray-50/50 hover:bg-gray-100 transition-all">+ 활동 관리</button>
                 </div>
 
                 {selectedCategoryId && (
