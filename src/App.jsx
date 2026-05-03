@@ -15,7 +15,7 @@ import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "fi
 // 💡 [중요] 파이어베이스에서 복사한 firebaseConfig 내용을 아래에 덮어씌우세요!
 // ==========================================
 const firebaseConfig = {
-  apiKey: "AIzaSyCeGzssX8Tpn2tsFyBw9kGSBWUDoSkC-1I",
+  apiKey: "AIzaSyCeGzssX8tPn2tsFyBw9kGSBWUDOskC-1I",
   authDomain: "my-slip-app.firebaseapp.com",
   projectId: "my-slip-app",
   storageBucket: "my-slip-app.firebasestorage.app",
