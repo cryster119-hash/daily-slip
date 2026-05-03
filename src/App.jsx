@@ -339,11 +339,17 @@ export default function App() {
   // --- 렌더링: 로그인 화면 ---
   if (!user) {
     return (
-      <div className="h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-8 text-center font-sans">
+      <div className="h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-8 text-center">
+        <style>{`
+          @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+          @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap');
+          * { font-family: 'Pretendard', sans-serif; }
+          .font-cute { font-family: 'Jua', sans-serif; }
+        `}</style>
         <div className="w-24 h-24 bg-indigo-600 text-white rounded-[32px] flex items-center justify-center shadow-2xl mb-8">
           <Layers size={48} strokeWidth={2.5}/>
         </div>
-        <h1 className="text-3xl font-black tracking-tighter text-gray-900 mb-2">하루 조각</h1>
+        <h1 className="text-[40px] font-cute tracking-widest text-gray-900 mb-2">하루 조각</h1>
         <p className="text-gray-400 font-medium mb-12 leading-relaxed">일상의 흩어진 조각들을 모아<br/>나만의 타임라인을 완성해 보세요.</p>
         
         <button 
@@ -359,21 +365,32 @@ export default function App() {
 
   // --- 렌더링: 메인 앱 ---
   return (
-    <div className="min-h-screen bg-gray-100 flex justify-center text-gray-900 font-sans p-0 sm:p-4 overflow-hidden selection:bg-indigo-100">
-      <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; } .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; } html, body { overscroll-behavior-y: none; }`}</style>
+    <div className="min-h-screen bg-gray-100 flex justify-center text-gray-900 p-0 sm:p-4 overflow-hidden selection:bg-indigo-100">
+      <style>{`
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap');
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; } 
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; } 
+        html, body { overscroll-behavior-y: none; font-family: 'Pretendard', sans-serif; }
+        
+        .font-pretendard { font-family: 'Pretendard', sans-serif; }
+        .font-cute { font-family: 'Jua', sans-serif; }
+        .font-diary { font-family: 'Gowun Dodum', sans-serif; }
+      `}</style>
       
-      <div className="w-full max-w-md bg-[#F9FAFB] sm:rounded-[44px] shadow-2xl h-screen sm:h-[850px] overflow-hidden flex flex-col relative sm:border-[10px] border-gray-900">
+      <div className="w-full max-w-md bg-[#F9FAFB] sm:rounded-[44px] shadow-2xl h-screen sm:h-[850px] overflow-hidden flex flex-col relative sm:border-[10px] border-gray-900 font-pretendard">
         
         <header className="bg-white px-6 py-5 border-b border-gray-100 shrink-0 z-30 flex justify-between items-center rounded-b-[32px] shadow-sm relative">
           <div className="flex items-center gap-3">
             <div className="bg-indigo-600 text-white p-2.5 rounded-2xl shadow-lg shadow-indigo-100"><Layers size={20} strokeWidth={2.5}/></div>
             <div>
-              <h1 className="text-[19px] font-black tracking-tight leading-none">하루 조각</h1>
+              <h1 className="text-[22px] font-cute tracking-wide leading-none text-indigo-950 mt-1">하루 조각</h1>
               <p className="text-[9px] text-gray-400 font-bold tracking-widest uppercase mt-1">Hello, {user.displayName?.split(' ')[0] || 'User'}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {user.photoURL && <img src={user.photoURL} alt="profile" className="w-8 h-8 rounded-full border border-gray-100 shadow-sm" />}
+            {user.photoURL && <img src={user.photoURL} alt="profile" className="w-9 h-9 rounded-full border border-gray-100 shadow-sm" />}
             <button onClick={() => setIsManagingCategories(true)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-all active:scale-90"><Settings size={22} /></button>
           </div>
         </header>
@@ -428,7 +445,7 @@ export default function App() {
                   { id: 'calendar', icon: Calendar, label: '달력' },
                   { id: 'search', icon: Search, label: '검색' }
                 ].map(tab => (
-                  <button key={tab.id} onClick={() => setViewMode(tab.id)} className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[12px] font-black rounded-xl transition-all ${viewMode === tab.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+                  <button key={tab.id} onClick={() => setViewMode(tab.id)} className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[13px] font-black rounded-xl transition-all ${viewMode === tab.id ? 'bg-white text-indigo-900 shadow-sm' : 'text-gray-500'}`}>
                     <tab.icon size={16} strokeWidth={2.5}/> <span className="hidden sm:inline">{tab.label}</span>
                   </button>
                 ))}
@@ -476,9 +493,9 @@ export default function App() {
                               <button onClick={(ev) => handleDelete(ev, e.id)} className="p-2.5 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
                             </div>
                             <div className="pl-[64px]">
-                              {e.title && <h4 className="text-[18px] font-black text-gray-900 mb-1 leading-tight tracking-tight">{e.title}</h4>}
+                              {e.title && <h4 className="text-[18px] font-black text-gray-900 mb-2 leading-tight tracking-tight">{e.title}</h4>}
                               <p className="text-[15px] text-gray-600 leading-relaxed whitespace-pre-wrap">{e.content}</p>
-                              {e.tags?.length > 0 && <div className="flex flex-wrap gap-2 mt-4">{e.tags.map((t,i) => <span key={i} className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100/50 shadow-sm">#{t}</span>)}</div>}
+                              {e.tags?.length > 0 && <div className="flex flex-wrap gap-2 mt-4">{e.tags.map((t,i) => <span key={i} className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-3.5 py-1.5 rounded-full border border-indigo-100/50 shadow-sm">#{t}</span>)}</div>}
                             </div>
                           </div>
                         );
@@ -496,9 +513,10 @@ export default function App() {
                      <div className="space-y-12 relative border-l-2 border-amber-200/40 ml-2 pl-8 pb-10">
                         {diaryEntries.map(e => (
                           <div key={e.id} onClick={() => handleEditEntry(e)} className="relative cursor-pointer group active:scale-[0.98] transition-transform">
-                            <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-amber-400 border-4 border-[#FFFCF5] shadow-md group-hover:scale-125 transition-transform" />
-                            <div className="text-[12px] font-black text-amber-600/70 font-mono mb-2 uppercase tracking-widest">{formatTime(e.timestamp)} — {e.title || getCategory(e.categoryId).label}</div>
-                            <p className="text-[16px] text-gray-700 leading-loose font-medium">{e.content}</p>
+                            <div className="absolute -left-[31px] top-2 w-4 h-4 rounded-full bg-amber-400 border-4 border-[#FFFCF5] shadow-md group-hover:scale-125 transition-transform" />
+                            <div className="text-[12px] font-black text-amber-600/70 font-mono mb-2.5 uppercase tracking-widest">{formatTime(e.timestamp)} — {e.title || getCategory(e.categoryId).label}</div>
+                            {/* 아기자기한 다이어리 폰트 적용 (고운돋움) */}
+                            <p className="text-[17px] text-gray-700 leading-loose font-diary font-bold">{e.content}</p>
                           </div>
                         ))}
                      </div>
@@ -510,7 +528,7 @@ export default function App() {
                 <div className="space-y-8">
                   <div className="flex overflow-x-auto gap-3 pb-2 hide-scrollbar">
                     {categories.map(c => (
-                      <button key={c.id} onClick={() => setCalendarCategory(c.id)} className={`shrink-0 flex items-center gap-1.5 px-6 py-3 rounded-2xl text-[14px] font-black border transition-all ${calendarCategory === c.id ? `${c.color} border-transparent ring-2 ring-indigo-200 shadow-xl` : 'bg-white text-gray-400 border-gray-100 shadow-sm'}`}>{c.label}</button>
+                      <button key={c.id} onClick={() => setCalendarCategory(c.id)} className={`shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-black border transition-all ${calendarCategory === c.id ? `${c.color} border-transparent ring-2 ring-indigo-200 shadow-xl` : 'bg-white text-gray-400 border-gray-100 shadow-sm'}`}>{c.label}</button>
                     ))}
                   </div>
                   <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-xl shadow-indigo-50/20">
@@ -519,7 +537,7 @@ export default function App() {
                       <h3 className="font-black text-2xl tracking-tighter">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
                       <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()+1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300"><ChevronRight size={28}/></button>
                     </div>
-                    <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={`text-[11px] font-black ${d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300 uppercase'}`}>{d}</div>)}</div>
+                    <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={`text-[12px] font-black ${d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300 uppercase'}`}>{d}</div>)}</div>
                     <div className="grid grid-cols-7 gap-y-5">
                       {calendarDays.map((d,i) => {
                         if (!d) return <div key={i} className="h-12" />;
@@ -604,7 +622,7 @@ export default function App() {
                 </div>
 
                 {selectedCategoryId && (
-                  <div className="space-y-7 px-1">
+                  <div className="space-y-7 px-1 pb-10">
                     <div className="flex bg-gray-100 p-2 rounded-[24px]">
                       {[{ id: 'range', label: '소요 범위', icon: ClockArrowUp }, { id: 'none', label: '시간 생략', icon: Zap }].map(m => (
                         <button key={m.id} onClick={() => setTimeMode(m.id)} className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-[14px] font-black rounded-[20px] transition-all ${timeMode === m.id ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400'}`}>
@@ -659,6 +677,7 @@ export default function App() {
           </div>
         )}
 
+        {/* 토스트 */}
         {toast && (
           <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-top-6 duration-400">
             <div className={`px-8 py-4 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex items-center gap-3 border ${toast.type === 'success' ? 'bg-white text-indigo-600 border-indigo-100' : 'bg-white text-rose-600 border-rose-100'}`}>
@@ -668,6 +687,7 @@ export default function App() {
           </div>
         )}
 
+        {/* 법적 모달 */}
         {legalModal && (
           <div className="absolute inset-0 z-[100] bg-white flex flex-col p-10 animate-in fade-in duration-400">
              <div className="flex justify-between items-center mb-12"><h3 className="text-3xl font-black tracking-tighter uppercase">{legalModal === 'tos' ? 'Terms' : 'Privacy'}</h3><button onClick={() => setLegalModal(null)} className="p-4 bg-gray-100 rounded-full active:scale-90 transition-all shadow-sm"><X size={24}/></button></div>
