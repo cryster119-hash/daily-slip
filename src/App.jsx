@@ -26,7 +26,7 @@ const firebaseConfig = {
 // 파이어베이스 초기화 (Config가 비어있으면 에러가 날 수 있으니 꼭 채워주세요)
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = getFirestore(app) ;
 
 // 아이콘 및 색상 설정
 const AVAILABLE_ICONS = [
