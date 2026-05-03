@@ -15,7 +15,8 @@ import {
   GoogleAuthProvider, 
   signInWithPopup, 
   signOut, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  signInAnonymously
 } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 
@@ -33,7 +34,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
-const APP_ID = "daily-pieces-v1"; // 앱 데이터 그룹 식별자
+const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "daily-pieces-v1"; // 앱 데이터 그룹 식별자
 
 const AVAILABLE_COLORS = [
   'bg-blue-100 text-blue-600 border-blue-200',
@@ -134,6 +135,15 @@ export default function App() {
       showToast("반갑습니다!");
     } catch (error) {
       showToast("로그인에 실패했습니다.", "error");
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    try {
+      await signInAnonymously(auth);
+      showToast("게스트 모드로 시작합니다!");
+    } catch (error) {
+      showToast("게스트 로그인에 실패했습니다.", "error");
     }
   };
 
@@ -320,7 +330,11 @@ export default function App() {
     const hasMatch = entries.some(e => getLocalDateString(new Date(e.timestamp)) === dStr && e.categoryId === calendarCategory);
     if (!hasMatch) return null;
     const cat = getCategory(calendarCategory);
-    return { badge: cat.color.split(' ')[1].replace('text-', 'bg-'), bg: cat.color.split(' ')[0] };
+    return { 
+      badge: cat.color.split(' ')[1].replace('text-', 'bg-'), 
+      bg: cat.color.split(' ')[0],
+      text: cat.color.split(' ')[1] // 날짜 텍스트 강조용 색상 추가
+    };
   };
 
   const monthlyCount = useMemo(() => {
@@ -359,6 +373,23 @@ export default function App() {
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" alt="Google"/>
           구글 계정으로 시작하기
         </button>
+
+        <button 
+          onClick={handleGuestLogin}
+          className="w-full max-w-xs flex items-center justify-center gap-4 bg-transparent py-3 mt-3 rounded-2xl font-bold text-gray-500 hover:bg-gray-200/50 active:scale-95 transition-all"
+        >
+          먼저 둘러보기 (게스트)
+        </button>
+
+        {/* 로그인 화면용 토스트 알림 */}
+        {toast && (
+          <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-top-6 duration-400">
+            <div className={`px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 border ${toast.type === 'success' ? 'bg-white text-indigo-600 border-indigo-100' : 'bg-white text-rose-600 border-rose-100'}`}>
+              {toast.type === 'success' ? <Check size={22} strokeWidth={4}/> : <AlertCircle size={22} strokeWidth={4}/>}
+              <span className="text-[16px] font-black tracking-tight">{toast.message}</span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -526,7 +557,7 @@ export default function App() {
 
               {viewMode === 'calendar' && (
                 <div className="space-y-8">
-                  <div className="flex overflow-x-auto gap-3 pb-2 hide-scrollbar">
+                  <div className="flex overflow-x-auto gap-3 pt-2 pb-4 hide-scrollbar px-2 -mx-2">
                     {categories.map(c => (
                       <button key={c.id} onClick={() => setCalendarCategory(c.id)} className={`shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-black border transition-all ${calendarCategory === c.id ? `${c.color} border-transparent ring-2 ring-indigo-200 shadow-xl` : 'bg-white text-gray-400 border-gray-100 shadow-sm'}`}>{c.label}</button>
                     ))}
@@ -546,13 +577,13 @@ export default function App() {
                         const isSelected = getLocalDateString(d) === getLocalDateString(selectedDate);
                         return (
                           <button key={i} onClick={() => { setSelectedDate(d); setViewMode('pieces'); }} className={`h-12 relative flex items-center justify-center group rounded-2xl transition-all ${isSelected?'bg-indigo-50/70 shadow-inner':''}`}>
-                            <span className={`text-[16px] font-black z-10 transition-colors ${isToday ? 'text-indigo-600 ring-2 ring-indigo-100 rounded-full w-9 h-9 flex items-center justify-center' : 'text-gray-700'}`}>{d.getDate()}</span>
                             {status && (
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <div className={`w-10 h-10 rounded-full ${status.bg} opacity-60 group-hover:scale-110 transition-transform border border-white`} />
-                                <div className={`absolute top-0 right-0 w-4.5 h-4.5 rounded-full ${status.badge} border-2 border-white flex items-center justify-center shadow-lg`}><Check size={11} strokeWidth={5} className="text-white" /></div>
+                                <div className={`w-10 h-10 rounded-full ${status.bg} shadow-sm group-hover:scale-110 transition-transform`} />
+                                <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full ${status.badge} border-2 border-white flex items-center justify-center shadow-md`}><Check size={12} strokeWidth={4} className="text-white" /></div>
                               </div>
                             )}
+                            <span className={`text-[16px] font-black z-10 transition-colors ${status ? status.text : (isToday ? 'text-indigo-600 ring-2 ring-indigo-100 rounded-full w-9 h-9 flex items-center justify-center' : 'text-gray-700')}`}>{d.getDate()}</span>
                           </button>
                         );
                       })}
@@ -571,7 +602,7 @@ export default function App() {
               {viewMode === 'search' && (
                 <div className="space-y-8">
                   <div className="relative"><Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300" size={22} strokeWidth={3}/><input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="기록 제목, 태그, 본문 검색" className="w-full pl-14 pr-8 py-5 bg-white rounded-[28px] shadow-xl font-black border-none focus:ring-2 focus:ring-indigo-500 transition-all text-lg" /></div>
-                  <div className="flex overflow-x-auto gap-3 pb-2 hide-scrollbar">
+                  <div className="flex overflow-x-auto gap-3 pt-2 pb-4 hide-scrollbar px-2 -mx-2">
                     <button onClick={() => setSearchCategory('all')} className={`shrink-0 px-6 py-3 rounded-2xl text-[14px] font-black transition-all ${searchCategory === 'all' ? 'bg-gray-900 text-white shadow-xl' : 'bg-white text-gray-400 border border-gray-100 shadow-sm'}`}>전체보기</button>
                     {categories.map(c => (<button key={c.id} onClick={() => setSearchCategory(c.id)} className={`shrink-0 px-6 py-3 rounded-2xl text-[14px] font-black border transition-all ${searchCategory === c.id ? `${c.color} border-transparent shadow-xl` : 'bg-white text-gray-400 border-gray-100 shadow-sm'}`}>{c.label}</button>))}
                   </div>
@@ -601,6 +632,8 @@ export default function App() {
           </div>
         )}
 
+        {/* 작성 시트 */}
+        {/* 작성/수정 시트 */}
         {isSheetOpen && (
           <div className="absolute inset-0 z-50 flex flex-col justify-end">
              <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-400" onClick={() => setIsSheetOpen(false)} />
@@ -614,7 +647,7 @@ export default function App() {
                    <button onClick={() => { setEditingId(null); handleOpenSheet(); }} className="text-[12px] font-black bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-full active:scale-95 transition-all">지금 시간</button>
                 </div>
                 
-                <div className="flex overflow-x-auto gap-3 pb-8 hide-scrollbar px-1">
+                <div className="flex overflow-x-auto gap-3 pt-2 pb-8 hide-scrollbar px-2 -mx-2">
                    {categories.map(c => (
                      <button key={c.id} onClick={() => setSelectedCategoryId(c.id)} className={`shrink-0 flex items-center gap-3 px-6 py-4 rounded-[22px] text-[16px] font-black border transition-all ${selectedCategoryId === c.id ? `${c.color} border-transparent ring-2 ring-indigo-500 shadow-2xl` : 'bg-white text-gray-500 border-gray-100 shadow-sm'}`}>{c.label}</button>
                    ))}
@@ -624,30 +657,35 @@ export default function App() {
                 {selectedCategoryId && (
                   <div className="space-y-7 px-1 pb-10">
                     <div className="flex bg-gray-100 p-2 rounded-[24px]">
-                      {[{ id: 'range', label: '소요 범위', icon: ClockArrowUp }, { id: 'none', label: '시간 생략', icon: Zap }].map(m => (
+                      {/* [수정됨] 소요 범위 -> 시간 설정으로 텍스트 변경 */}
+                      {[{ id: 'range', label: '시간 설정', icon: ClockArrowUp }, { id: 'none', label: '시간 생략', icon: Zap }].map(m => (
                         <button key={m.id} onClick={() => setTimeMode(m.id)} className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-[14px] font-black rounded-[20px] transition-all ${timeMode === m.id ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400'}`}>
                           <m.icon size={18} strokeWidth={2.5}/> {m.label}
                         </button>
                       ))}
                     </div>
                     
-                    {timeMode !== 'none' && (
-                      <div className="space-y-4">
-                        <div className="relative group" onClick={triggerPicker}>
-                          <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="w-full px-6 py-5 bg-gray-100 rounded-3xl border-none font-black text-lg appearance-none focus:bg-gray-200 transition-colors text-center" />
-                          <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"><CalendarDays size={24}/></div>
+                    {/* [수정됨] 날짜와 시간이 한눈에 보이게 묶어주는 통일된 박스 UI 적용 */}
+                    {timeMode === 'range' && (
+                      <div className="bg-gray-50 p-4 rounded-[28px] border border-gray-100 space-y-3">
+                        <div className="relative flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
+                          <div className="pl-5 text-indigo-400"><CalendarDays size={20} /></div>
+                          <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="w-full px-4 py-4 bg-transparent border-none font-black text-[16px] appearance-none focus:outline-none transition-colors" />
                         </div>
-                        {timeMode === 'range' && (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="relative" onClick={triggerPicker}><input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} className="w-full px-6 py-5 bg-gray-100 rounded-3xl border-none font-black text-lg appearance-none focus:bg-gray-200 transition-colors text-center" /></div>
-                            <div className="relative" onClick={triggerPicker}><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-6 py-5 bg-gray-100 rounded-3xl border-none font-black text-lg appearance-none focus:bg-gray-200 transition-colors text-center" /></div>
+                        <div className="flex items-center gap-3">
+                          <div className="relative flex-1 flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
+                            <input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} className="w-full px-3 py-4 bg-transparent border-none font-black text-[16px] appearance-none focus:outline-none text-center" />
                           </div>
-                        )}
+                          <span className="text-gray-300 font-black text-lg">~</span>
+                          <div className="relative flex-1 flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
+                            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-3 py-4 bg-transparent border-none font-black text-[16px] appearance-none focus:outline-none text-center" />
+                          </div>
+                        </div>
                       </div>
                     )}
 
-                    <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="어떤 활동이었나요?" className="w-full px-7 py-5 bg-gray-50 rounded-3xl border-none font-black text-xl focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-300" />
-                    <textarea ref={contentInputRef} value={content} onChange={e => setContent(e.target.value)} placeholder="순간의 감정을 자유롭게 남겨보세요." className="w-full px-7 py-5 bg-gray-50 rounded-3xl h-44 resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-300 font-medium" />
+                    <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="활동 제목" className="w-full px-7 py-5 bg-gray-50 rounded-3xl border-none font-black text-xl focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-300" />
+                    <textarea ref={contentInputRef} value={content} onChange={e => setContent(e.target.value)} placeholder="오늘을 기록할 조각들을 채워주세요." className="w-full px-7 py-5 bg-gray-50 rounded-3xl h-44 resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-300 font-medium" />
                     
                     <div className="bg-gray-50 px-6 py-5 rounded-[32px] space-y-5">
                        <span className="text-[11px] font-black text-gray-400 flex items-center gap-2 uppercase tracking-widest"><Target size={14}/> Tags & Labels</span>
