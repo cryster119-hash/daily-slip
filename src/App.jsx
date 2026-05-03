@@ -45,6 +45,14 @@ const AVAILABLE_COLORS = [
   'bg-purple-100 text-purple-600 border-purple-200',
   'bg-rose-100 text-rose-600 border-rose-200',
   'bg-sky-100 text-sky-600 border-sky-200',
+  'bg-teal-100 text-teal-600 border-teal-200',
+  'bg-orange-100 text-orange-600 border-orange-200',
+  'bg-pink-100 text-pink-600 border-pink-200',
+  'bg-indigo-100 text-indigo-600 border-indigo-200',
+  'bg-fuchsia-100 text-fuchsia-600 border-fuchsia-200',
+  'bg-cyan-100 text-cyan-600 border-cyan-200',
+  'bg-lime-100 text-lime-600 border-lime-200',
+  'bg-violet-100 text-violet-600 border-violet-200',
 ];
 
 const AVAILABLE_ICONS = [
@@ -74,6 +82,14 @@ const getSolidColor = (colorStr) => {
   if (colorStr.includes('purple')) return 'bg-purple-500';
   if (colorStr.includes('rose')) return 'bg-rose-500';
   if (colorStr.includes('sky')) return 'bg-sky-500';
+  if (colorStr.includes('teal')) return 'bg-teal-500';
+  if (colorStr.includes('orange')) return 'bg-orange-500';
+  if (colorStr.includes('pink')) return 'bg-pink-500';
+  if (colorStr.includes('indigo')) return 'bg-indigo-500';
+  if (colorStr.includes('fuchsia')) return 'bg-fuchsia-500';
+  if (colorStr.includes('cyan')) return 'bg-cyan-500';
+  if (colorStr.includes('lime')) return 'bg-lime-500';
+  if (colorStr.includes('violet')) return 'bg-violet-500';
   return 'bg-gray-500';
 };
 
@@ -85,6 +101,14 @@ const getTextColor = (colorStr) => {
   if (colorStr.includes('purple')) return 'text-purple-600';
   if (colorStr.includes('rose')) return 'text-rose-600';
   if (colorStr.includes('sky')) return 'text-sky-600';
+  if (colorStr.includes('teal')) return 'text-teal-600';
+  if (colorStr.includes('orange')) return 'text-orange-600';
+  if (colorStr.includes('pink')) return 'text-pink-600';
+  if (colorStr.includes('indigo')) return 'text-indigo-600';
+  if (colorStr.includes('fuchsia')) return 'text-fuchsia-600';
+  if (colorStr.includes('cyan')) return 'text-cyan-600';
+  if (colorStr.includes('lime')) return 'text-lime-600';
+  if (colorStr.includes('violet')) return 'text-violet-600';
   return 'text-gray-600';
 };
 
@@ -588,7 +612,7 @@ export default function App() {
                                 <div className={`w-12 h-12 rounded-[18px] flex items-center justify-center ${cat.color} shadow-sm border border-white/20`}><cat.Icon size={22} strokeWidth={2.5} /></div>
                                 <div><div className="text-[11px] font-black text-gray-400 uppercase tracking-tighter">{cat.label}</div><div className="text-[14px] font-mono font-bold text-indigo-500 mt-0.5">{formatTime(e.timestamp)}</div></div>
                               </div>
-                              <button onClick={(ev) => handleDelete(ev, e.id)} className="p-2.5 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
+                              <button onClick={(ev) => handleDeleteEntry(ev, e.id)} className="p-2.5 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
                             </div>
                             <div className="pl-[64px]">
                               {e.title && <h4 className="text-[18px] font-black text-gray-900 mb-2 leading-tight tracking-tight">{e.title}</h4>}
