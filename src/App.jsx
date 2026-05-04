@@ -7,7 +7,8 @@ import {
   BookOpen, AlignLeft, Sparkles, Search, Filter, Calendar,
   ShieldCheck, FileText, Pencil, AlertCircle, Download, LogOut,
   Wine, Beer, Monitor, Laptop, Home, ShoppingBag, 
-  Utensils, Music, Heart, Moon, Car, Gamepad2
+  Utensils, Music, Heart, Moon, Car, Gamepad2,
+  PieChart, Award, TrendingUp
 } from 'lucide-react';
 
 // --- Firebase 임포트 ---
@@ -65,7 +66,6 @@ const defaultCategories = [
   { id: 'social', label: '만남', iconName: 'Coffee', color: AVAILABLE_COLORS[2] },
 ];
 
-// Tailwind Purge 방지 함수
 const getSolidColor = (colorStr) => {
   if (!colorStr) return 'bg-gray-500';
   if (colorStr.includes('blue')) return 'bg-blue-500';
@@ -88,7 +88,7 @@ const getTextColor = (colorStr) => {
   return 'text-gray-600';
 };
 
-// PWA 아이콘 및 홈 화면 추가 설정
+// PWA 설정
 const setupPWA = () => {
   if (typeof document === 'undefined') return;
   const appIconSvg = `<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="512" height="512" rx="112" fill="url(#p1)"/><path d="M160 170H352V210H160V170Z" fill="white"/><path d="M160 250H352V290H160V250Z" fill="white" fill-opacity="0.8"/><path d="M160 330H352V370H160V330Z" fill="white" fill-opacity="0.6"/><defs><linearGradient id="p1" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse"><stop stop-color="#6366F1"/><stop offset="1" stop-color="#4338CA"/></linearGradient></defs></svg>`;
@@ -120,10 +120,11 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
-  // 필터 및 검색
+  // 필터, 검색, 통계
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategory, setSearchCategory] = useState('all');
   const [calendarCategory, setCalendarCategory] = useState(defaultCategories[0].id);
+  const [statsPeriod, setStatsPeriod] = useState('month'); // week, month, year, all
 
   // 작성/수정 폼
   const [editingId, setEditingId] = useState(null);
@@ -145,62 +146,31 @@ export default function App() {
 
   const contentInputRef = useRef(null);
 
-  // 토스트 알림
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // --- 1. 구글 로그인 인증 로직 ---
+  // Auth & Sync
   useEffect(() => {
     setupPWA();
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoadingAuth(false);
-    });
+    const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoadingAuth(false); });
     return () => unsubscribe();
   }, []);
 
-  const handleGoogleLogin = async () => {
-    try {
-      await signInWithPopup(auth, provider);
-      showToast("반갑습니다!");
-    } catch (error) {
-      showToast("로그인에 실패했습니다.", "error");
-    }
-  };
+  const handleGoogleLogin = async () => { try { await signInWithPopup(auth, provider); showToast("반갑습니다!"); } catch (e) { showToast("로그인 실패", "error"); } };
+  const handleGuestLogin = async () => { try { await signInAnonymously(auth); showToast("게스트 모드로 시작합니다!"); } catch (e) { showToast("게스트 로그인 실패", "error"); } };
+  const handleLogout = async () => { if(!confirm("로그아웃 하시겠습니까?")) return; try { await signOut(auth); setIsManagingCategories(false); showToast("로그아웃 되었습니다."); } catch (e) {} };
 
-  const handleGuestLogin = async () => {
-    try {
-      await signInAnonymously(auth);
-      showToast("게스트 모드로 시작합니다!");
-    } catch (error) {
-      showToast("게스트 로그인에 실패했습니다.", "error");
-    }
-  };
-
-  const handleLogout = async () => {
-    if(!confirm("로그아웃 하시겠습니까?")) return;
-    try {
-      await signOut(auth);
-      setIsManagingCategories(false);
-      showToast("로그아웃 되었습니다.");
-    } catch (error) { showToast("로그아웃 실패", "error"); }
-  };
-
-  // --- 2. 데이터 바인딩 ---
   useEffect(() => {
     if (!user) return;
     setIsSyncing(true);
-    
     const entriesRef = collection(db, 'artifacts', APP_ID, 'users', user.uid, 'entries');
     const unsubEntries = onSnapshot(entriesRef, (snap) => {
-      const data = [];
-      snap.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
+      const data = []; snap.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
       data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      setEntries(data);
-      setIsSyncing(false);
-    }, (err) => { console.error(err); setIsSyncing(false); });
+      setEntries(data); setIsSyncing(false);
+    }, () => setIsSyncing(false));
 
     const settingsRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'settings', 'userCategories');
     const unsubCats = onSnapshot(settingsRef, (snap) => {
@@ -209,50 +179,38 @@ export default function App() {
         if (!calendarCategory) setCalendarCategory(snap.data().list[0]?.id || '');
       }
     });
-
     return () => { unsubEntries(); unsubCats(); };
   }, [user, calendarCategory]);
 
-  // 핸들러 함수
+  // Helpers
   const getLocalDateString = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const formatDate = (ts) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date(ts));
   const formatTime = (ts) => new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ts));
-
+  
   const getCategory = (id) => {
     const cat = categories.find(c => c.id === id) || { label: '미정', color: 'bg-gray-100 text-gray-400', iconName: 'Hash' };
     const iconObj = AVAILABLE_ICONS.find(i => i.name === cat.iconName) || AVAILABLE_ICONS[5];
     return { ...cat, Icon: iconObj.component };
   };
 
-  const triggerPicker = (e) => {
-    const input = e.currentTarget.querySelector('input');
-    if (input && input.showPicker) { try { input.showPicker(); } catch (err) {} }
-  };
+  const triggerPicker = (e) => { const input = e.currentTarget.querySelector('input'); if (input && input.showPicker) { try { input.showPicker(); } catch (err) {} } };
 
+  // Form Handlers
   const handleOpenSheet = () => {
-    setEditingId(null);
-    const now = new Date();
-    const pad = (n) => n.toString().padStart(2, '0');
-    setEntryDate(getLocalDateString(selectedDate));
-    setEntryTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
-    const later = new Date(now.getTime() + 3600000);
-    setEndTime(`${pad(later.getHours())}:${pad(later.getMinutes())}`);
-    setSelectedCategoryId(null); setTitle(''); setContent(''); setTags([]); setTagInput('');
+    setEditingId(null); const now = new Date(); const pad = (n) => n.toString().padStart(2, '0');
+    setEntryDate(getLocalDateString(selectedDate)); setEntryTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+    const later = new Date(now.getTime() + 3600000); setEndTime(`${pad(later.getHours())}:${pad(later.getMinutes())}`);
+    setSelectedCategoryId(null); setTitle(''); setContent(''); setTags([]); 
+    setTagInput(''); // 태그 입력창 초기화 보장
     setIsSheetOpen(true);
   };
 
   const handleEditEntry = (entry) => {
-    setEditingId(entry.id);
-    const d = new Date(entry.timestamp);
-    const pad = (n) => n.toString().padStart(2, '0');
-    setEntryDate(getLocalDateString(d));
-    setEntryTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
-    setEndTime(entry.endTime || '');
-    setTimeMode(entry.timeMode === 'start' ? 'range' : entry.timeMode || 'range');
-    setSelectedCategoryId(entry.categoryId);
-    setTitle(entry.title || '');
-    setContent(entry.content || '');
-    setTags(entry.tags || []);
+    setEditingId(entry.id); const d = new Date(entry.timestamp); const pad = (n) => n.toString().padStart(2, '0');
+    setEntryDate(getLocalDateString(d)); setEntryTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    setEndTime(entry.endTime || ''); setTimeMode(entry.timeMode === 'start' ? 'range' : entry.timeMode || 'range');
+    setSelectedCategoryId(entry.categoryId); setTitle(entry.title || ''); setContent(entry.content || ''); setTags(entry.tags || []); 
+    setTagInput(''); // 편집 시 태그 입력창 초기화
     setIsSheetOpen(true);
   };
 
@@ -260,77 +218,43 @@ export default function App() {
     if (!selectedCategoryId || (!title.trim() && !content.trim()) || !user) return;
     const ts = new Date(`${entryDate}T${entryTime}:00`).toISOString();
     const finalTags = [...tags];
-    if (tagInput.trim()) {
-      const clean = tagInput.trim().replace(/^#/, '');
-      if (!finalTags.includes(clean)) finalTags.push(clean);
-    }
+    if (tagInput.trim()) { const clean = tagInput.trim().replace(/^#/, ''); if (!finalTags.includes(clean)) finalTags.push(clean); }
     try {
       const docId = editingId || Date.now().toString();
-      const entryRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'entries', docId);
-      await setDoc(entryRef, {
-        timestamp: ts, timeMode, endTime: timeMode === 'range' ? endTime : null,
-        categoryId: selectedCategoryId, title: title.trim(), content: content.trim(), tags: finalTags
-      });
-      setSelectedDate(new Date(ts));
-      setIsSheetOpen(false);
-      showToast(editingId ? "조각이 수정되었습니다" : "오늘의 조각을 남겼습니다");
+      await setDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'entries', docId), { timestamp: ts, timeMode, endTime: timeMode === 'range' ? endTime : null, categoryId: selectedCategoryId, title: title.trim(), content: content.trim(), tags: finalTags });
+      setSelectedDate(new Date(ts)); setIsSheetOpen(false); showToast(editingId ? "조각이 수정되었습니다" : "오늘의 조각을 남겼습니다");
+      setTagInput(''); // 저장 완료 후 확실히 초기화
     } catch (e) { showToast("저장 실패", "error"); }
   };
 
   const handleDeleteEntry = async (e, id) => {
-    if (e) e.stopPropagation();
-    if (!user || !window.confirm('정말 이 기록을 지울까요?')) return;
-    try {
-      await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'entries', id));
-      if (isSheetOpen) setIsSheetOpen(false);
-      showToast("기록이 파기되었습니다");
-    } catch (e) { showToast("삭제 에러", "error"); }
+    if (e) e.stopPropagation(); if (!user || !window.confirm('정말 이 기록을 지울까요?')) return;
+    try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'entries', id)); if (isSheetOpen) setIsSheetOpen(false); showToast("기록이 파기되었습니다"); } catch (e) { showToast("삭제 에러", "error"); }
   };
 
   const saveCategory = async (e) => {
-    e.preventDefault();
-    if (!newCatLabel.trim() || !user) return;
-    let newList;
-    if (editingCategoryId) {
-      newList = categories.map(c => c.id === editingCategoryId ? { ...c, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor } : c);
-    } else {
-      newList = [...categories, { id: `cat_${Date.now()}`, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor }];
-    }
+    e.preventDefault(); if (!newCatLabel.trim() || !user) return;
+    let newList = editingCategoryId ? categories.map(c => c.id === editingCategoryId ? { ...c, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor } : c) : [...categories, { id: `cat_${Date.now()}`, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor }];
     setCategories(newList);
-    try {
-      await setDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'settings', 'userCategories'), { list: newList });
-      setNewCatLabel('');
-      setEditingCategoryId(null);
-      showToast(editingCategoryId ? "활동이 수정되었습니다" : "새 활동이 추가되었습니다");
-    } catch (err) { showToast("저장 실패", "error"); }
+    try { await setDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'settings', 'userCategories'), { list: newList }); setNewCatLabel(''); setEditingCategoryId(null); showToast(editingCategoryId ? "활동이 수정되었습니다" : "새 활동이 추가되었습니다"); } catch (err) { showToast("저장 실패", "error"); }
   };
 
   const deleteCategory = async (id) => {
     if(entries.some(e => e.categoryId === id)) return showToast("기록이 있는 항목은 삭제 불가", "error");
     if(!confirm('카테고리를 삭제하시겠습니까?')) return;
-    const newList = categories.filter(c => c.id !== id);
-    setCategories(newList);
-    try {
-      await setDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'settings', 'userCategories'), { list: newList });
-      showToast("카테고리 삭제 완료");
-    } catch (err) { showToast("삭제 실패", "error"); }
+    const newList = categories.filter(c => c.id !== id); setCategories(newList);
+    try { await setDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'settings', 'userCategories'), { list: newList }); showToast("카테고리 삭제 완료"); } catch (err) { showToast("삭제 실패", "error"); }
   };
 
   const exportToCSV = () => {
     if (entries.length === 0) return showToast("기록이 없습니다", "error");
-    const headers = ["날짜", "시간", "카테고리", "제목", "내용", "태그"];
-    const rows = entries.map(e => [
-      formatDate(e.timestamp), formatTime(e.timestamp),
-      getCategory(e.categoryId).label, e.title || "", e.content?.replace(/\n/g, " ") || "", e.tags?.join(", ") || ""
-    ]);
+    const headers = ["날짜", "시작시간", "종료시간", "카테고리", "제목", "내용", "태그"];
+    const rows = entries.map(e => [ formatDate(e.timestamp), formatTime(e.timestamp), e.endTime || "", getCategory(e.categoryId).label, e.title || "", e.content?.replace(/\n/g, " ") || "", e.tags?.join(", ") || "" ]);
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
-    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", `daily_archive_${getLocalDateString(new Date())}.csv`);
-    document.body.appendChild(link); link.click();
-    showToast("CSV 백업 완료");
+    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", `daily_archive_${getLocalDateString(new Date())}.csv`); document.body.appendChild(link); link.click(); showToast("CSV 백업 완료");
   };
 
-  // --- 뷰 연산 ---
+  // --- Views Computations ---
   const dailyEntries = useMemo(() => entries.filter(e => getLocalDateString(new Date(e.timestamp)) === getLocalDateString(selectedDate)), [entries, selectedDate]);
   const diaryEntries = useMemo(() => [...dailyEntries].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp)), [dailyEntries]);
 
@@ -343,51 +267,67 @@ export default function App() {
       return matchCat && matchText;
     });
     const grouped = {};
-    filtered.forEach(e => {
-      const d = formatDate(e.timestamp);
-      if (!grouped[d]) grouped[d] = [];
-      grouped[d].push(e);
-    });
+    filtered.forEach(e => { const d = formatDate(e.timestamp); if (!grouped[d]) grouped[d] = []; grouped[d].push(e); });
     return grouped;
   }, [entries, searchQuery, searchCategory, viewMode]);
 
   const calendarDays = useMemo(() => {
     const y = calendarMonth.getFullYear(), m = calendarMonth.getMonth();
-    const start = new Date(y, m, 1).getDay();
-    const total = new Date(y, m+1, 0).getDate();
-    const days = Array(start).fill(null);
-    for(let i=1; i<=total; i++) days.push(new Date(y, m, i));
+    const start = new Date(y, m, 1).getDay(); const total = new Date(y, m+1, 0).getDate();
+    const days = Array(start).fill(null); for(let i=1; i<=total; i++) days.push(new Date(y, m, i));
     return days;
   }, [calendarMonth]);
 
   const getDayStatus = (date) => {
-    if (!date) return null;
-    const dStr = getLocalDateString(date);
+    if (!date) return null; const dStr = getLocalDateString(date);
     const hasMatch = entries.some(e => getLocalDateString(new Date(e.timestamp)) === dStr && e.categoryId === calendarCategory);
     if (!hasMatch) return null;
     const cat = getCategory(calendarCategory);
-    return { 
-      badge: cat.color.split(' ')[1].replace('text-', 'bg-'), 
-      bg: cat.color.split(' ')[0],
-      text: cat.color.split(' ')[1],
-      color: cat.color
-    };
+    return { badge: cat.color.split(' ')[1].replace('text-', 'bg-'), bg: cat.color.split(' ')[0], text: cat.color.split(' ')[1], color: cat.color };
   };
 
   const monthlyCount = useMemo(() => {
-    const uniqueDays = new Set(entries
-      .filter(e => e.categoryId === calendarCategory)
-      .map(e => getLocalDateString(new Date(e.timestamp)))
-      .filter(s => s.startsWith(`${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth()+1).padStart(2,'0')}`))
-    );
-    return uniqueDays.size;
+    return new Set(entries.filter(e => e.categoryId === calendarCategory).map(e => getLocalDateString(new Date(e.timestamp))).filter(s => s.startsWith(`${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth()+1).padStart(2,'0')}`))).size;
   }, [entries, calendarCategory, calendarMonth]);
 
+  // --- 통계(Stats) 연산 ---
+  const statsData = useMemo(() => {
+    if (viewMode !== 'stats') return null;
+    const now = new Date();
+    const filtered = entries.filter(e => {
+      const d = new Date(e.timestamp);
+      if (statsPeriod === 'week') { const weekAgo = new Date(); weekAgo.setDate(now.getDate() - 7); return d >= weekAgo && d <= now; }
+      if (statsPeriod === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      if (statsPeriod === 'year') return d.getFullYear() === now.getFullYear();
+      return true;
+    });
 
-  // --- 렌더링: 로그인 대기 화면 ---
+    const catCounts = {}; filtered.forEach(e => { catCounts[e.categoryId] = (catCounts[e.categoryId] || 0) + 1; });
+    const sortedCats = Object.entries(catCounts).map(([id, count]) => ({ id, count, cat: getCategory(id) })).sort((a, b) => b.count - a.count);
+    const maxCatCount = sortedCats.length > 0 ? sortedCats[0].count : 1;
+
+    const tagCounts = {}; filtered.forEach(e => { (e.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }); });
+    const sortedTags = Object.entries(tagCounts).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count).slice(0, 10);
+    const activeDays = new Set(filtered.map(e => getLocalDateString(new Date(e.timestamp)))).size;
+
+    return { total: filtered.length, activeDays, categories: sortedCats, tags: sortedTags, maxCatCount };
+  }, [entries, statsPeriod, viewMode, categories]);
+
+  // --- 전체 데이터 기반 Top 태그 추출 (최대 5개, 추천 태그용) ---
+  const topTagsRecommendation = useMemo(() => {
+    const tagCounts = {};
+    entries.forEach(e => {
+      (e.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+    });
+    return Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1]) // 사용 빈도순 정렬
+      .slice(0, 5) // 상위 5개
+      .map(([tag]) => tag);
+  }, [entries]);
+
+  // --- 렌더링 ---
   if (loadingAuth) return <div className="h-screen flex items-center justify-center bg-white"><div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
-  // --- 렌더링: 로그인 화면 ---
   if (!user) {
     return (
       <div className="h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-8 text-center">
@@ -397,53 +337,24 @@ export default function App() {
           * { font-family: 'Pretendard', sans-serif; }
           .font-cute { font-family: 'Jua', sans-serif; }
         `}</style>
-        <div className="w-24 h-24 bg-indigo-600 text-white rounded-[32px] flex items-center justify-center shadow-2xl mb-8">
-          <Layers size={48} strokeWidth={2.5}/>
-        </div>
+        <div className="w-24 h-24 bg-indigo-600 text-white rounded-[32px] flex items-center justify-center shadow-2xl mb-8"><Layers size={48} strokeWidth={2.5}/></div>
         <h1 className="text-[40px] font-cute tracking-widest text-gray-900 mb-2">하루 조각</h1>
         <p className="text-gray-400 font-medium mb-12 leading-relaxed">일상의 흩어진 조각들을 모아<br/>나만의 타임라인을 완성해 보세요.</p>
-        
-        <button 
-          onClick={handleGoogleLogin}
-          className="w-full max-w-xs flex items-center justify-center gap-4 bg-white border border-gray-200 py-4.5 rounded-2xl font-black text-gray-700 shadow-sm active:scale-95 transition-all hover:bg-gray-50"
-        >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" alt="Google"/>
-          구글 계정으로 시작하기
-        </button>
-
-        <button 
-          onClick={handleGuestLogin}
-          className="w-full max-w-xs flex items-center justify-center gap-4 bg-transparent py-3 mt-3 rounded-2xl font-bold text-gray-500 hover:bg-gray-200/50 active:scale-95 transition-all"
-        >
-          먼저 둘러보기 (게스트)
-        </button>
-
-        {toast && (
-          <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-top-6 duration-400">
-            <div className={`px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 border ${toast.type === 'success' ? 'bg-white text-indigo-600 border-indigo-100' : 'bg-white text-rose-600 border-rose-100'}`}>
-              {toast.type === 'success' ? <Check size={22} strokeWidth={4}/> : <AlertCircle size={22} strokeWidth={4}/>}
-              <span className="text-[16px] font-black tracking-tight">{toast.message}</span>
-            </div>
-          </div>
-        )}
+        <button onClick={handleGoogleLogin} className="w-full max-w-xs flex items-center justify-center gap-4 bg-white border border-gray-200 py-4.5 rounded-2xl font-black text-gray-700 shadow-sm active:scale-95 transition-all hover:bg-gray-50"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" alt="Google"/>구글 계정으로 시작하기</button>
+        <button onClick={handleGuestLogin} className="w-full max-w-xs flex items-center justify-center gap-4 bg-transparent py-3 mt-3 rounded-2xl font-bold text-gray-500 hover:bg-gray-200/50 active:scale-95 transition-all">먼저 둘러보기 (게스트)</button>
+        {toast && <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-top-6 duration-400"><div className={`px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 border ${toast.type === 'success' ? 'bg-white text-indigo-600 border-indigo-100' : 'bg-white text-rose-600 border-rose-100'}`}>{toast.type === 'success' ? <Check size={22} strokeWidth={4}/> : <AlertCircle size={22} strokeWidth={4}/>}<span className="text-[16px] font-black tracking-tight">{toast.message}</span></div></div>}
       </div>
     );
   }
 
-  // --- 렌더링: 메인 앱 ---
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center text-gray-900 p-0 sm:p-4 overflow-hidden selection:bg-indigo-100">
       <style>{`
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap');
-        
-        .hide-scrollbar::-webkit-scrollbar { display: none; } 
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; } 
+        .hide-scrollbar::-webkit-scrollbar { display: none; } .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; } 
         html, body { overscroll-behavior-y: none; font-family: 'Pretendard', sans-serif; }
-        
-        .font-pretendard { font-family: 'Pretendard', sans-serif; }
-        .font-cute { font-family: 'Jua', sans-serif; }
-        .font-diary { font-family: 'Gowun Dodum', sans-serif; }
+        .font-pretendard { font-family: 'Pretendard', sans-serif; } .font-cute { font-family: 'Jua', sans-serif; } .font-diary { font-family: 'Gowun Dodum', sans-serif; }
       `}</style>
       
       <div className="w-full max-w-md bg-[#F9FAFB] sm:rounded-[44px] shadow-2xl h-screen sm:h-[850px] overflow-hidden flex flex-col relative sm:border-[10px] border-gray-900 font-pretendard">
@@ -451,10 +362,7 @@ export default function App() {
         <header className="bg-white px-6 py-5 border-b border-gray-100 shrink-0 z-30 flex justify-between items-center rounded-b-[32px] shadow-sm relative">
           <div className="flex items-center gap-3">
             <div className="bg-indigo-600 text-white p-2.5 rounded-2xl shadow-lg shadow-indigo-100"><Layers size={20} strokeWidth={2.5}/></div>
-            <div>
-              <h1 className="text-[22px] font-cute tracking-wide leading-none text-indigo-950 mt-1">하루 조각</h1>
-              <p className="text-[9px] text-gray-400 font-bold tracking-widest uppercase mt-1">Hello, {user.displayName?.split(' ')[0] || 'User'}</p>
-            </div>
+            <div><h1 className="text-[22px] font-cute tracking-wide leading-none text-indigo-950 mt-1">하루 조각</h1><p className="text-[9px] text-gray-400 font-bold tracking-widest uppercase mt-1">Hello, {user.displayName?.split(' ')[0] || 'User'}</p></div>
           </div>
           <div className="flex items-center gap-3">
             {user.photoURL && <img src={user.photoURL} alt="profile" className="w-9 h-9 rounded-full border border-gray-100 shadow-sm" />}
@@ -473,25 +381,11 @@ export default function App() {
               <h3 className="text-xs font-black text-indigo-500 tracking-wider flex items-center gap-1.5 uppercase"><Sparkles size={14}/> {editingCategoryId ? '활동 수정 (과거 기록 자동 반영)' : '새 활동 추가'}</h3>
               <form onSubmit={saveCategory} className="space-y-5">
                 <input type="text" value={newCatLabel} onChange={e => setNewCatLabel(e.target.value)} placeholder="항목 이름 (예: 명상, 독서)" maxLength={10} className="w-full px-5 py-4 bg-gray-50 rounded-2xl border-none font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-lg" />
-                <div className="flex gap-2.5 flex-wrap">
-                  {AVAILABLE_ICONS.map(i => (
-                    <button key={i.name} type="button" onClick={() => setNewCatIcon(i.name)} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${newCatIcon === i.name ? 'bg-indigo-100 text-indigo-600 shadow-inner ring-2 ring-indigo-200 scale-110' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}>
-                      <i.component size={20}/>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-3 flex-wrap">
-                  {AVAILABLE_COLORS.map(c => (
-                    <button key={c} type="button" onClick={() => setNewCatColor(c)} className={`w-8 h-8 rounded-full border-2 transition-transform ${c.split(' ')[0]} ${newCatColor === c ? 'border-gray-800 scale-125 shadow-lg' : 'border-transparent'}`} />
-                  ))}
-                </div>
+                <div className="flex gap-2.5 flex-wrap">{AVAILABLE_ICONS.map(i => (<button key={i.name} type="button" onClick={() => setNewCatIcon(i.name)} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${newCatIcon === i.name ? 'bg-indigo-100 text-indigo-600 shadow-inner ring-2 ring-indigo-200 scale-110' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}><i.component size={20}/></button>))}</div>
+                <div className="flex gap-3 flex-wrap">{AVAILABLE_COLORS.map(c => (<button key={c} type="button" onClick={() => setNewCatColor(c)} className={`w-8 h-8 rounded-full border-2 transition-transform ${c.split(' ')[0]} ${newCatColor === c ? 'border-gray-800 scale-125 shadow-lg' : 'border-transparent'}`} />))}</div>
                 <div className="flex gap-2">
-                  <button type="submit" disabled={!newCatLabel.trim()} className="flex-1 bg-indigo-600 text-white py-4.5 rounded-2xl font-black active:scale-95 transition-all shadow-xl shadow-indigo-100">
-                    {editingCategoryId ? '수정하기' : '추가하기'}
-                  </button>
-                  {editingCategoryId && (
-                    <button type="button" onClick={() => { setEditingCategoryId(null); setNewCatLabel(''); }} className="px-6 bg-gray-100 text-gray-500 rounded-2xl font-black active:scale-95 transition-all">취소</button>
-                  )}
+                  <button type="submit" disabled={!newCatLabel.trim()} className="flex-1 bg-indigo-600 text-white py-4.5 rounded-2xl font-black active:scale-95 transition-all shadow-xl shadow-indigo-100">{editingCategoryId ? '수정하기' : '추가하기'}</button>
+                  {editingCategoryId && <button type="button" onClick={() => { setEditingCategoryId(null); setNewCatLabel(''); }} className="px-6 bg-gray-100 text-gray-500 rounded-2xl font-black active:scale-95 transition-all">취소</button>}
                 </div>
               </form>
             </section>
@@ -502,10 +396,7 @@ export default function App() {
                 const CatIcon = getCategory(cat.id).Icon;
                 return (
                   <div key={cat.id} className="flex items-center justify-between p-4.5 bg-white border border-gray-100 rounded-[24px] shadow-sm transition-all active:bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 flex items-center justify-center rounded-2xl ${cat.color}`}><CatIcon size={20} strokeWidth={2.5}/></div>
-                      <span className="font-bold text-gray-800 text-lg">{cat.label}</span>
-                    </div>
+                    <div className="flex items-center gap-4"><div className={`w-10 h-10 flex items-center justify-center rounded-2xl ${cat.color}`}><CatIcon size={20} strokeWidth={2.5}/></div><span className="font-bold text-gray-800 text-lg">{cat.label}</span></div>
                     <div className="flex gap-1">
                       <button onClick={() => { setEditingCategoryId(cat.id); setNewCatLabel(cat.label); setNewCatIcon(cat.iconName); setNewCatColor(cat.color); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-2 text-gray-300 hover:text-indigo-500 active:scale-90 transition-all"><Pencil size={20}/></button>
                       <button onClick={() => deleteCategory(cat.id)} className="p-2 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
@@ -519,26 +410,24 @@ export default function App() {
                <button onClick={exportToCSV} className="w-full flex items-center justify-center gap-3 py-4.5 bg-gray-900 text-white rounded-[24px] font-black active:scale-95 transition-all shadow-xl"><Download size={20}/> 모든 기록 백업하기 (CSV)</button>
                <button onClick={handleLogout} className="w-full flex items-center justify-center gap-3 py-4.5 bg-white border border-gray-200 text-gray-400 rounded-[24px] font-bold active:scale-95 transition-all"><LogOut size={18}/> 로그아웃</button>
             </section>
-
             <footer className="mt-auto py-10 border-t border-gray-200 flex flex-col items-center gap-5 text-center">
-              <div className="flex gap-8">
-                <button onClick={() => setLegalModal('tos')} className="text-xs font-bold text-gray-400 active:text-indigo-600">이용약관</button>
-                <button onClick={() => setLegalModal('privacy')} className="text-xs font-bold text-gray-400 active:text-indigo-600">개인정보 처리방침</button>
-              </div>
+              <div className="flex gap-8"><button onClick={() => setLegalModal('tos')} className="text-xs font-bold text-gray-400 active:text-indigo-600">이용약관</button><button onClick={() => setLegalModal('privacy')} className="text-xs font-bold text-gray-400 active:text-indigo-600">개인정보 처리방침</button></div>
               <p className="text-[10px] text-gray-300 font-mono tracking-tighter uppercase">© 2026 Park Geunhong. Cloud Synced.</p>
             </footer>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto flex flex-col hide-scrollbar pb-24 relative">
-            <div className="px-5 py-4 sticky top-0 z-20 bg-[#F9FAFB] border-b border-gray-100 shadow-sm">
+            
+            <div className="px-3 sm:px-5 py-4 sticky top-0 z-20 bg-[#F9FAFB] border-b border-gray-100 shadow-sm">
               <div className="flex bg-gray-200/60 p-1 rounded-2xl mb-3">
                 {[
                   { id: 'pieces', icon: AlignLeft, label: '조각' },
                   { id: 'diary', icon: BookOpen, label: '일기장' },
                   { id: 'calendar', icon: Calendar, label: '달력' },
+                  { id: 'stats', icon: PieChart, label: '통계' },
                   { id: 'search', icon: Search, label: '검색' }
                 ].map(tab => (
-                  <button key={tab.id} onClick={() => setViewMode(tab.id)} className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[13px] font-black rounded-xl transition-all ${viewMode === tab.id ? 'bg-white text-indigo-900 shadow-sm' : 'text-gray-500'}`}>
+                  <button key={tab.id} onClick={() => setViewMode(tab.id)} className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] sm:text-[13px] font-black rounded-xl transition-all ${viewMode === tab.id ? 'bg-white text-indigo-900 shadow-sm' : 'text-gray-500'}`}>
                     <tab.icon size={16} strokeWidth={2.5}/> <span className="hidden sm:inline">{tab.label}</span>
                   </button>
                 ))}
@@ -558,6 +447,8 @@ export default function App() {
             </div>
 
             <div className="p-5 space-y-6">
+              
+              {/* 뷰: 조각 (타임라인) */}
               {viewMode === 'pieces' && (
                 <>
                   {dailyEntries.length > 0 && (
@@ -583,10 +474,8 @@ export default function App() {
                                 <div className={`w-12 h-12 rounded-[18px] flex items-center justify-center ${cat.color} shadow-sm border border-white/20`}><cat.Icon size={22} strokeWidth={2.5} /></div>
                                 <div>
                                   <div className="text-[11px] font-black text-gray-400 uppercase tracking-tighter">{cat.label}</div>
-                                  {/* [수정 완벽 반영] 타임라인 종료시간 렌더링 */}
                                   <div className="text-[14px] font-mono font-bold text-indigo-500 mt-0.5">
-                                    {formatTime(e.timestamp)}
-                                    {e.endTime && <span className="text-indigo-300 font-medium ml-1">~ {e.endTime}</span>}
+                                    {formatTime(e.timestamp)} {e.endTime && `~ ${e.endTime}`}
                                   </div>
                                 </div>
                               </div>
@@ -605,6 +494,7 @@ export default function App() {
                 </>
               )}
 
+              {/* 뷰: 다이어리 */}
               {viewMode === 'diary' && (
                 <div className="bg-[#FFFCF5] rounded-[40px] border border-amber-100 p-8 shadow-sm min-h-[550px] relative overflow-hidden">
                    <div className="absolute top-0 left-8 right-8 h-1.5 flex justify-around -mt-0.5 opacity-30"><div className="w-3 h-5 bg-gray-400 rounded-full shadow-sm"></div><div className="w-3 h-5 bg-gray-400 rounded-full shadow-sm"></div><div className="w-3 h-5 bg-gray-400 rounded-full shadow-sm"></div></div>
@@ -616,12 +506,8 @@ export default function App() {
                         {diaryEntries.map(e => (
                           <div key={e.id} onClick={() => handleEditEntry(e)} className="relative cursor-pointer group active:scale-[0.98] transition-transform">
                             <div className="absolute -left-[31px] top-2 w-4 h-4 rounded-full bg-amber-400 border-4 border-[#FFFCF5] shadow-md group-hover:scale-125 transition-transform" />
-                            {/* [수정 완벽 반영] 다이어리 뷰: 제목이 먼저 나오고 다음 줄에 시간이 표시됨 */}
-                            <div className="text-[16px] font-black text-amber-900 mb-1 tracking-tight">
-                              {e.title || getCategory(e.categoryId).label}
-                            </div>
-                            <div className="text-[11px] font-black text-amber-600/70 font-mono mb-3 uppercase tracking-widest">
-                              {formatTime(e.timestamp)}{e.endTime && ` ~ ${e.endTime}`}
+                            <div className="text-[13px] font-black text-amber-600/70 font-mono mb-2.5 uppercase tracking-widest font-pretendard">
+                              {formatTime(e.timestamp)} {e.endTime && `— ${e.endTime}`} <span className="mx-1">•</span> {e.title || getCategory(e.categoryId).label}
                             </div>
                             <p className="text-[17px] text-gray-700 leading-loose font-diary font-bold">{e.content}</p>
                           </div>
@@ -631,6 +517,7 @@ export default function App() {
                 </div>
               )}
 
+              {/* 뷰: 달력 */}
               {viewMode === 'calendar' && (
                 <div className="space-y-8">
                   <div className="flex flex-wrap gap-2 pt-2 pb-4 px-1">
@@ -650,7 +537,7 @@ export default function App() {
                       <h3 className="font-black text-2xl tracking-tighter">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
                       <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()+1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300"><ChevronRight size={28}/></button>
                     </div>
-                    <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={`text-[11px] font-black ${d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300 uppercase'}`}>{d}</div>)}</div>
+                    <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={`text-[12px] font-black ${d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300 uppercase'}`}>{d}</div>)}</div>
                     <div className="grid grid-cols-7 gap-y-5">
                       {calendarDays.map((d,i) => {
                         if (!d) return <div key={i} className="h-12" />;
@@ -681,10 +568,69 @@ export default function App() {
                 </div>
               )}
 
+              {/* 뷰: 통계 */}
+              {viewMode === 'stats' && statsData && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 mb-2">
+                    {[{ id: 'week', label: '최근 7일' }, { id: 'month', label: '이번 달' }, { id: 'year', label: '올해' }, { id: 'all', label: '전체' }].map(p => (
+                      <button key={p.id} onClick={() => setStatsPeriod(p.id)} className={`flex-1 py-2.5 text-[13px] font-black rounded-xl transition-all ${statsPeriod === p.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}>{p.label}</button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-900 rounded-[32px] p-6 text-white shadow-xl shadow-gray-200">
+                      <div className="w-10 h-10 bg-gray-800 rounded-2xl flex items-center justify-center mb-4"><Layers size={20} className="text-indigo-400"/></div>
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Pieces</p>
+                      <div className="text-4xl font-black tracking-tighter">{statsData.total}<span className="text-sm ml-1 font-bold">조각</span></div>
+                    </div>
+                    <div className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm">
+                      <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center mb-4"><CalendarDays size={20} className="text-indigo-600"/></div>
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Active Days</p>
+                      <div className="text-4xl font-black tracking-tighter text-gray-800">{statsData.activeDays}<span className="text-sm ml-1 font-bold">일</span></div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-[36px] p-7 border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-2 mb-6"><TrendingUp size={20} className="text-indigo-500" strokeWidth={2.5}/><h3 className="text-[16px] font-black text-gray-800">활동 랭킹</h3></div>
+                    {statsData.categories.length === 0 ? <div className="py-10 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">기록이 없습니다</div> : (
+                      <div className="space-y-5">
+                        {statsData.categories.map((item) => {
+                          const width = Math.max(10, (item.count / statsData.maxCatCount) * 100);
+                          const bgSolid = getSolidColor(item.cat.color);
+                          const CatIcon = item.cat.Icon;
+                          return (
+                            <div key={item.id} className="relative">
+                              <div className="flex justify-between items-end mb-2">
+                                <div className="flex items-center gap-2"><div className={`w-6 h-6 rounded-md flex items-center justify-center ${item.cat.color} shadow-sm border border-white/20`}><CatIcon size={12} strokeWidth={3}/></div><span className="text-[14px] font-black text-gray-700">{item.cat.label}</span></div>
+                                <span className="text-[14px] font-bold text-gray-400">{item.count}회</span>
+                              </div>
+                              <div className="h-3.5 w-full bg-gray-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${bgSolid} transition-all duration-1000 ease-out`} style={{ width: `${width}%` }} /></div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-[36px] p-7 border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-2 mb-6"><Award size={20} className="text-amber-500" strokeWidth={2.5}/><h3 className="text-[16px] font-black text-gray-800">가장 많이 쓴 태그</h3></div>
+                    {statsData.tags.length === 0 ? <div className="py-10 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">태그 기록이 없습니다</div> : (
+                      <div className="flex flex-wrap gap-2.5">
+                        {statsData.tags.map(t => (
+                          <div key={t.tag} className="flex items-center bg-gray-50 border border-gray-200 rounded-[16px] px-3.5 py-2 shadow-sm">
+                            <span className="text-[13px] font-black text-indigo-600 mr-2">#{t.tag}</span><span className="bg-white text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{t.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 뷰: 검색 */}
               {viewMode === 'search' && (
                 <div className="space-y-8">
                   <div className="relative"><Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300" size={22} strokeWidth={3}/><input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="기록 제목, 태그, 본문 검색" className="w-full pl-14 pr-8 py-5 bg-white rounded-[28px] shadow-xl font-black border-none focus:ring-2 focus:ring-indigo-500 transition-all text-lg" /></div>
-                  
                   <div className="flex flex-wrap gap-2 pt-2 pb-4 px-1">
                     <button onClick={() => setSearchCategory('all')} className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-black transition-all ${searchCategory === 'all' ? 'bg-gray-900 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200 shadow-sm hover:bg-gray-50'}`}>전체보기</button>
                     {categories.map(c => {
@@ -706,16 +652,7 @@ export default function App() {
                           return (
                             <div key={item.id} onClick={() => handleEditEntry(item)} className="p-6 flex gap-5 hover:bg-gray-50 active:bg-gray-50 transition-all cursor-pointer relative group">
                               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${cat.color} shadow-sm border border-white/20`}><cat.Icon size={22} strokeWidth={2.5}/></div>
-                              <div className="flex-1 min-w-0">
-                                {/* 검색 뷰에도 시간 표시 */}
-                                <div className="flex justify-between items-center mb-0.5">
-                                  <div className="text-[17px] font-black text-gray-800 truncate leading-snug tracking-tight pr-2">{item.title || "무제"}</div>
-                                  <div className="text-[12px] font-mono text-gray-400 font-bold whitespace-nowrap">
-                                    {formatTime(item.timestamp)}{item.endTime && ` ~ ${item.endTime}`}
-                                  </div>
-                                </div>
-                                <p className="text-[14px] text-gray-500 line-clamp-1 font-medium">{item.content}</p>
-                              </div>
+                              <div className="flex-1 min-w-0"><div className="text-[17px] font-black text-gray-800 truncate leading-snug tracking-tight">{item.title || "무제"}</div><p className="text-[14px] text-gray-500 line-clamp-1 mt-1 font-medium">{item.content}</p></div>
                               <button onClick={(ev) => handleDeleteEntry(ev, item.id)} className="p-2 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
                             </div>
                           );
@@ -776,17 +713,15 @@ export default function App() {
                       <div className="bg-gray-50 p-4 rounded-[28px] border border-gray-100 space-y-3">
                         <div className="relative flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
                           <div className="pl-5 text-indigo-400"><CalendarDays size={20} /></div>
-                          <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="w-full px-4 py-4 bg-transparent border-none font-black text-gray-900 text-[16px] appearance-none focus:outline-none transition-colors" />
+                          <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="w-full px-4 py-4 bg-transparent border-none font-black text-[16px] appearance-none focus:outline-none transition-colors" />
                         </div>
-                        {/* [수정 완벽 반영] Grid 2등분으로 좁은 모바일 화면에서도 삐져나가지 않게 배치 */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="relative flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
-                            <div className="absolute left-4 text-[11px] font-black text-gray-400">시작</div>
-                            <input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} className="w-full pl-12 pr-2 py-4 bg-transparent border-none font-black text-gray-900 text-[15px] appearance-none focus:outline-none text-center" />
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="relative flex-1 min-w-[130px] flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
+                            <input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} className="w-full px-3 py-4 bg-transparent border-none font-black text-[16px] appearance-none focus:outline-none text-center" />
                           </div>
-                          <div className="relative flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
-                            <div className="absolute left-4 text-[11px] font-black text-gray-400">종료</div>
-                            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full pl-12 pr-2 py-4 bg-transparent border-none font-black text-gray-900 text-[15px] appearance-none focus:outline-none text-center" />
+                          <span className="text-gray-300 font-black text-lg text-center hidden sm:block">~</span>
+                          <div className="relative flex-1 min-w-[130px] flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
+                            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-3 py-4 bg-transparent border-none font-black text-[16px] appearance-none focus:outline-none text-center" />
                           </div>
                         </div>
                       </div>
@@ -795,15 +730,27 @@ export default function App() {
                     <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="활동 제목" className="w-full px-7 py-5 bg-gray-50 rounded-3xl border-none font-black text-xl focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-300" />
                     <textarea ref={contentInputRef} value={content} onChange={e => setContent(e.target.value)} placeholder="오늘을 기록할 조각들을 채워주세요." className="w-full px-7 py-5 bg-gray-50 rounded-3xl h-44 resize-none text-[17px] leading-relaxed focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-300 font-medium" />
                     
-                    <div className="bg-gray-50 px-6 py-5 rounded-[32px] space-y-5">
+                    <div className="bg-gray-50 px-6 py-5 rounded-[32px] space-y-4">
                        <span className="text-[11px] font-black text-gray-400 flex items-center gap-2 uppercase tracking-widest"><Target size={14}/> Tags & Labels</span>
+                       
+                       {/* 추천 태그 (많이 쓴 태그 Top 5) */}
+                       {topTagsRecommendation.length > 0 && (
+                         <div className="flex flex-wrap gap-2 pt-1 pb-2">
+                           {topTagsRecommendation.map(t => (
+                             <button key={`rec-${t}`} onClick={() => { if(!tags.includes(t)) setTags([...tags, t]); }} className="text-[12px] font-bold text-gray-500 bg-white border border-gray-200 px-3 py-1.5 rounded-full shadow-sm hover:text-indigo-600 hover:border-indigo-200 transition-all active:scale-95">
+                               + {t}
+                             </button>
+                           ))}
+                         </div>
+                       )}
+
                        <div className="flex flex-wrap gap-2.5">
                          {tags.map((t,i) => <span key={i} className="bg-white border border-gray-200 px-4 py-2 rounded-[16px] text-xs font-black flex items-center gap-2 shadow-sm">{t}<button onClick={() => setTags(tags.filter(item => item !== t))} className="text-red-400 active:scale-75 transition-transform"><X size={16} strokeWidth={3}/></button></span>)}
                          <input type="text" value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ' || e.key === ',') {
                               e.preventDefault(); const nt = tagInput.trim().replace(/^#/, '');
                               if (nt && !tags.includes(nt)) setTags([...tags, nt]);
-                              setTagInput('');
+                              setTagInput(''); // 입력 후 초기화
                             }
                          }} placeholder="Enter, 공백, 쉼표로 태그 추가" className="flex-1 bg-transparent outline-none text-[15px] font-black min-w-[120px]" />
                        </div>
