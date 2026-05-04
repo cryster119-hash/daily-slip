@@ -8,7 +8,7 @@ import {
   ShieldCheck, FileText, Pencil, AlertCircle, Download, LogOut,
   Wine, Beer, Monitor, Laptop, Home, ShoppingBag, 
   Utensils, Music, Heart, Moon, Car, Gamepad2,
-  PieChart, Award, TrendingUp
+  PieChart, Award, TrendingUp, Clock
 } from 'lucide-react';
 
 // --- Firebase 임포트 ---
@@ -187,6 +187,28 @@ export default function App() {
   const formatDate = (ts) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date(ts));
   const formatTime = (ts) => new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ts));
   
+  // 두 시간 사이의 차이를 분 단위로 계산하는 함수
+  const calculateDurationInMinutes = (timestamp, endTime, timeMode) => {
+    if (timeMode === 'none' || !endTime) return 0;
+    const start = new Date(timestamp);
+    const [endH, endM] = endTime.split(':').map(Number);
+    const end = new Date(start);
+    end.setHours(endH, endM, 0, 0);
+    // 종료 시간이 시작 시간보다 빠르면 (예: 밤 11시 시작, 새벽 1시 종료) 자정을 넘긴 것으로 간주하여 1일 추가
+    if (end < start) end.setDate(end.getDate() + 1);
+    return Math.max(0, Math.round((end - start) / 60000));
+  };
+
+  // 분을 'N시간 M분' 텍스트로 변환하는 함수
+  const formatDurationStr = (mins) => {
+    if (mins === 0) return '0분';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h > 0 && m > 0) return `${h}시간 ${m}분`;
+    if (h > 0) return `${h}시간`;
+    return `${m}분`;
+  };
+
   const getCategory = (id) => {
     const cat = categories.find(c => c.id === id) || { label: '미정', color: 'bg-gray-100 text-gray-400', iconName: 'Hash' };
     const iconObj = AVAILABLE_ICONS.find(i => i.name === cat.iconName) || AVAILABLE_ICONS[5];
@@ -201,7 +223,7 @@ export default function App() {
     setEntryDate(getLocalDateString(selectedDate)); setEntryTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
     const later = new Date(now.getTime() + 3600000); setEndTime(`${pad(later.getHours())}:${pad(later.getMinutes())}`);
     setSelectedCategoryId(null); setTitle(''); setContent(''); setTags([]); 
-    setTagInput(''); // 태그 입력창 초기화 보장
+    setTagInput(''); 
     setIsSheetOpen(true);
   };
 
@@ -210,7 +232,7 @@ export default function App() {
     setEntryDate(getLocalDateString(d)); setEntryTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
     setEndTime(entry.endTime || ''); setTimeMode(entry.timeMode === 'start' ? 'range' : entry.timeMode || 'range');
     setSelectedCategoryId(entry.categoryId); setTitle(entry.title || ''); setContent(entry.content || ''); setTags(entry.tags || []); 
-    setTagInput(''); // 편집 시 태그 입력창 초기화
+    setTagInput(''); 
     setIsSheetOpen(true);
   };
 
@@ -223,7 +245,7 @@ export default function App() {
       const docId = editingId || Date.now().toString();
       await setDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'entries', docId), { timestamp: ts, timeMode, endTime: timeMode === 'range' ? endTime : null, categoryId: selectedCategoryId, title: title.trim(), content: content.trim(), tags: finalTags });
       setSelectedDate(new Date(ts)); setIsSheetOpen(false); showToast(editingId ? "조각이 수정되었습니다" : "오늘의 조각을 남겼습니다");
-      setTagInput(''); // 저장 완료 후 확실히 초기화
+      setTagInput('');
     } catch (e) { showToast("저장 실패", "error"); }
   };
 
@@ -248,8 +270,17 @@ export default function App() {
 
   const exportToCSV = () => {
     if (entries.length === 0) return showToast("기록이 없습니다", "error");
-    const headers = ["날짜", "시작시간", "종료시간", "카테고리", "제목", "내용", "태그"];
-    const rows = entries.map(e => [ formatDate(e.timestamp), formatTime(e.timestamp), e.endTime || "", getCategory(e.categoryId).label, e.title || "", e.content?.replace(/\n/g, " ") || "", e.tags?.join(", ") || "" ]);
+    const headers = ["날짜", "시작시간", "종료시간", "소요시간(분)", "카테고리", "제목", "내용", "태그"];
+    const rows = entries.map(e => [ 
+      formatDate(e.timestamp), 
+      formatTime(e.timestamp), 
+      e.endTime || "", 
+      calculateDurationInMinutes(e.timestamp, e.endTime, e.timeMode),
+      getCategory(e.categoryId).label, 
+      e.title || "", 
+      e.content?.replace(/\n/g, " ") || "", 
+      e.tags?.join(", ") || "" 
+    ]);
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
     const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", `daily_archive_${getLocalDateString(new Date())}.csv`); document.body.appendChild(link); link.click(); showToast("CSV 백업 완료");
   };
@@ -286,11 +317,7 @@ export default function App() {
     return { badge: cat.color.split(' ')[1].replace('text-', 'bg-'), bg: cat.color.split(' ')[0], text: cat.color.split(' ')[1], color: cat.color };
   };
 
-  const monthlyCount = useMemo(() => {
-    return new Set(entries.filter(e => e.categoryId === calendarCategory).map(e => getLocalDateString(new Date(e.timestamp))).filter(s => s.startsWith(`${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth()+1).padStart(2,'0')}`))).size;
-  }, [entries, calendarCategory, calendarMonth]);
-
-  // --- 통계(Stats) 연산 ---
+  // --- 누적 시간 통계(Stats) 연산 ---
   const statsData = useMemo(() => {
     if (viewMode !== 'stats') return null;
     const now = new Date();
@@ -302,23 +329,42 @@ export default function App() {
       return true;
     });
 
-    const catCounts = {}; filtered.forEach(e => { catCounts[e.categoryId] = (catCounts[e.categoryId] || 0) + 1; });
-    const sortedCats = Object.entries(catCounts).map(([id, count]) => ({ id, count, cat: getCategory(id) })).sort((a, b) => b.count - a.count);
-    const maxCatCount = sortedCats.length > 0 ? sortedCats[0].count : 1;
+    const catDurations = {};
+    const tagDurations = {};
 
-    const tagCounts = {}; filtered.forEach(e => { (e.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }); });
-    const sortedTags = Object.entries(tagCounts).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count).slice(0, 10);
-    const activeDays = new Set(filtered.map(e => getLocalDateString(new Date(e.timestamp)))).size;
+    filtered.forEach(e => {
+      const duration = calculateDurationInMinutes(e.timestamp, e.endTime, e.timeMode);
+      
+      // 카테고리별 누적 시간 더하기
+      catDurations[e.categoryId] = (catDurations[e.categoryId] || 0) + duration;
+      
+      // 태그별 누적 시간 더하기
+      (e.tags || []).forEach(t => {
+        tagDurations[t] = (tagDurations[t] || 0) + duration;
+      });
+    });
 
-    return { total: filtered.length, activeDays, categories: sortedCats, tags: sortedTags, maxCatCount };
+    // 누적 시간이 0인 항목은 필터링하고 내림차순 정렬
+    const sortedCats = Object.entries(catDurations)
+      .map(([id, duration]) => ({ id, duration, cat: getCategory(id) }))
+      .filter(item => item.duration > 0)
+      .sort((a, b) => b.duration - a.duration);
+      
+    const maxCatDuration = sortedCats.length > 0 ? sortedCats[0].duration : 1;
+
+    const sortedTags = Object.entries(tagDurations)
+      .map(([tag, duration]) => ({ tag, duration }))
+      .filter(item => item.duration > 0)
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, 10); // 상위 10개 태그만 노출
+
+    return { categories: sortedCats, tags: sortedTags, maxCatDuration };
   }, [entries, statsPeriod, viewMode, categories]);
 
-  // --- 전체 데이터 기반 Top 태그 추출 (최대 5개, 추천 태그용) ---
+  // --- 추천 태그 (전체 기간 횟수 기준 Top 5) ---
   const topTagsRecommendation = useMemo(() => {
     const tagCounts = {};
-    entries.forEach(e => {
-      (e.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
-    });
+    entries.forEach(e => { (e.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }); });
     return Object.entries(tagCounts)
       .sort((a, b) => b[1] - a[1]) // 사용 빈도순 정렬
       .slice(0, 5) // 상위 5개
@@ -451,13 +497,7 @@ export default function App() {
               {/* 뷰: 조각 (타임라인) */}
               {viewMode === 'pieces' && (
                 <>
-                  {dailyEntries.length > 0 && (
-                    <div className="bg-indigo-600 rounded-[36px] p-7 text-white shadow-2xl relative overflow-hidden active:scale-[0.98] transition-all">
-                       <BarChart2 size={130} className="absolute -right-6 -bottom-8 opacity-10" />
-                       <p className="text-[11px] font-bold opacity-70 mb-1 tracking-widest uppercase">Daily Pieces</p>
-                       <div className="text-5xl font-black tracking-tighter">{dailyEntries.length}<span className="text-xl ml-1 font-bold">조각</span></div>
-                    </div>
-                  )}
+                  {/* 불필요한 '오늘 모은 조각 수' 배너 삭제 */}
                   <div className="bg-white rounded-[36px] shadow-sm border border-gray-100 divide-y divide-dashed divide-gray-100 overflow-hidden">
                     {dailyEntries.length === 0 ? (
                       <div className="py-28 text-center text-gray-400 space-y-5">
@@ -558,53 +598,45 @@ export default function App() {
                       })}
                     </div>
                   </div>
-                  <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-md text-center">
-                    <p className="text-xs font-black text-gray-400 tracking-widest uppercase mb-3">Monthly Achievement</p>
-                    <div className="flex items-center justify-center gap-4">
-                       <span className="text-6xl font-black text-indigo-600 tracking-tighter">{monthlyCount}</span>
-                       <span className="text-xl font-bold text-gray-700">Days Active</span>
-                    </div>
-                  </div>
+                  {/* 달력 하단에 있던 월별 활동 수 제거됨 (디자인 통일을 위해) */}
                 </div>
               )}
 
-              {/* 뷰: 통계 */}
+              {/* 뷰: 통계 (누적 시간 고도화) */}
               {viewMode === 'stats' && statsData && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 mb-2">
+                  <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 mb-4">
                     {[{ id: 'week', label: '최근 7일' }, { id: 'month', label: '이번 달' }, { id: 'year', label: '올해' }, { id: 'all', label: '전체' }].map(p => (
                       <button key={p.id} onClick={() => setStatsPeriod(p.id)} className={`flex-1 py-2.5 text-[13px] font-black rounded-xl transition-all ${statsPeriod === p.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}>{p.label}</button>
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-900 rounded-[32px] p-6 text-white shadow-xl shadow-gray-200">
-                      <div className="w-10 h-10 bg-gray-800 rounded-2xl flex items-center justify-center mb-4"><Layers size={20} className="text-indigo-400"/></div>
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Pieces</p>
-                      <div className="text-4xl font-black tracking-tighter">{statsData.total}<span className="text-sm ml-1 font-bold">조각</span></div>
-                    </div>
-                    <div className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm">
-                      <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center mb-4"><CalendarDays size={20} className="text-indigo-600"/></div>
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Active Days</p>
-                      <div className="text-4xl font-black tracking-tighter text-gray-800">{statsData.activeDays}<span className="text-sm ml-1 font-bold">일</span></div>
-                    </div>
-                  </div>
+                  {/* 불필요한 서머리 박스(Total Pieces 등) 삭제됨 */}
 
+                  {/* 카테고리별 누적 활동 시간 바 차트 */}
                   <div className="bg-white rounded-[36px] p-7 border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6"><TrendingUp size={20} className="text-indigo-500" strokeWidth={2.5}/><h3 className="text-[16px] font-black text-gray-800">활동 랭킹</h3></div>
+                    <div className="flex items-center gap-2 mb-8">
+                      <TrendingUp size={20} className="text-indigo-500" strokeWidth={2.5}/>
+                      <h3 className="text-[16px] font-black text-gray-800">카테고리별 누적 시간</h3>
+                    </div>
                     {statsData.categories.length === 0 ? <div className="py-10 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">기록이 없습니다</div> : (
-                      <div className="space-y-5">
+                      <div className="space-y-6">
                         {statsData.categories.map((item) => {
-                          const width = Math.max(10, (item.count / statsData.maxCatCount) * 100);
+                          const width = Math.max(10, (item.duration / (statsData.maxCatDuration || 1)) * 100);
                           const bgSolid = getSolidColor(item.cat.color);
                           const CatIcon = item.cat.Icon;
                           return (
                             <div key={item.id} className="relative">
-                              <div className="flex justify-between items-end mb-2">
-                                <div className="flex items-center gap-2"><div className={`w-6 h-6 rounded-md flex items-center justify-center ${item.cat.color} shadow-sm border border-white/20`}><CatIcon size={12} strokeWidth={3}/></div><span className="text-[14px] font-black text-gray-700">{item.cat.label}</span></div>
-                                <span className="text-[14px] font-bold text-gray-400">{item.count}회</span>
+                              <div className="flex justify-between items-end mb-3">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${item.cat.color} shadow-sm border border-white/20`}><CatIcon size={16} strokeWidth={2.5}/></div>
+                                  <span className="text-[15px] font-black text-gray-800">{item.cat.label}</span>
+                                </div>
+                                <span className="text-[15px] font-bold text-gray-500">{formatDurationStr(item.duration)}</span>
                               </div>
-                              <div className="h-3.5 w-full bg-gray-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${bgSolid} transition-all duration-1000 ease-out`} style={{ width: `${width}%` }} /></div>
+                              <div className="h-4 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                                <div className={`h-full rounded-full ${bgSolid} transition-all duration-1000 ease-out`} style={{ width: `${width}%` }} />
+                              </div>
                             </div>
                           );
                         })}
@@ -612,13 +644,20 @@ export default function App() {
                     )}
                   </div>
 
+                  {/* 태그(세부 활동)별 누적 시간 리스트 */}
                   <div className="bg-white rounded-[36px] p-7 border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6"><Award size={20} className="text-amber-500" strokeWidth={2.5}/><h3 className="text-[16px] font-black text-gray-800">가장 많이 쓴 태그</h3></div>
+                    <div className="flex items-center gap-2 mb-6">
+                      <Clock size={20} className="text-amber-500" strokeWidth={2.5}/>
+                      <h3 className="text-[16px] font-black text-gray-800">태그(세부)별 누적 시간</h3>
+                    </div>
                     {statsData.tags.length === 0 ? <div className="py-10 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">태그 기록이 없습니다</div> : (
-                      <div className="flex flex-wrap gap-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {statsData.tags.map(t => (
-                          <div key={t.tag} className="flex items-center bg-gray-50 border border-gray-200 rounded-[16px] px-3.5 py-2 shadow-sm">
-                            <span className="text-[13px] font-black text-indigo-600 mr-2">#{t.tag}</span><span className="bg-white text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{t.count}</span>
+                          <div key={t.tag} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-[20px] px-5 py-4 shadow-sm hover:bg-white transition-colors">
+                            <span className="text-[15px] font-black text-indigo-600 mr-2">#{t.tag}</span>
+                            <span className="bg-white border border-gray-200 text-gray-500 text-[13px] font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                              {formatDurationStr(t.duration)}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -737,7 +776,7 @@ export default function App() {
                        {topTagsRecommendation.length > 0 && (
                          <div className="flex flex-wrap gap-2 pt-1 pb-2">
                            {topTagsRecommendation.map(t => (
-                             <button key={`rec-${t}`} onClick={() => { if(!tags.includes(t)) setTags([...tags, t]); }} className="text-[12px] font-bold text-gray-500 bg-white border border-gray-200 px-3 py-1.5 rounded-full shadow-sm hover:text-indigo-600 hover:border-indigo-200 transition-all active:scale-95">
+                             <button key={`rec-${t}`} onClick={() => { if(!tags.includes(t)) setTags([...tags, t]); }} className="text-[13px] font-bold text-gray-500 bg-white border border-gray-200 px-3.5 py-2 rounded-full shadow-sm hover:text-indigo-600 hover:border-indigo-200 transition-all active:scale-95">
                                + {t}
                              </button>
                            ))}
@@ -750,7 +789,7 @@ export default function App() {
                             if (e.key === 'Enter' || e.key === ' ' || e.key === ',') {
                               e.preventDefault(); const nt = tagInput.trim().replace(/^#/, '');
                               if (nt && !tags.includes(nt)) setTags([...tags, nt]);
-                              setTagInput(''); // 입력 후 초기화
+                              setTagInput('');
                             }
                          }} placeholder="Enter, 공백, 쉼표로 태그 추가" className="flex-1 bg-transparent outline-none text-[15px] font-black min-w-[120px]" />
                        </div>
