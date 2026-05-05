@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Book, Dumbbell, Coffee, Briefcase, Smile, Hash, 
   CalendarDays, Plus, Trash2, Tag as TagIcon, X, Check, 
-  Settings, ChevronLeft, ChevronRight, ChevronDown, Cloud, CloudOff,
+  Settings, ChevronLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, Cloud, CloudOff,
   BarChart2, Zap, ClockArrowUp, Layers, Target,
   BookOpen, AlignLeft, Sparkles, Search, Filter, Calendar,
   ShieldCheck, FileText, Pencil, AlertCircle, Download, LogOut,
@@ -38,7 +38,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
-const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "daily-pieces-v1";
+const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "daily-pieces-v1"; // 앱 데이터 그룹 식별자
 
 const AVAILABLE_COLORS = [
   'bg-blue-100 text-blue-600 border-blue-200',
@@ -128,7 +128,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategory, setSearchCategory] = useState('all');
   const [calendarCategory, setCalendarCategory] = useState(defaultCategories[0].id);
-  const [statsPeriod, setStatsPeriod] = useState('month');
+  const [statsPeriod, setStatsPeriod] = useState('month'); // week, month, year, custom
   const [statsStartDate, setStatsStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return getLocalDateString(d); });
   const [statsEndDate, setStatsEndDate] = useState(getLocalDateString(new Date()));
 
@@ -245,6 +245,8 @@ export default function App() {
     const iconObj = AVAILABLE_ICONS.find(i => i.name === cat.iconName) || AVAILABLE_ICONS[5];
     return { ...cat, Icon: iconObj.component };
   };
+
+  const triggerPicker = (e) => { const input = e.currentTarget.querySelector('input'); if (input && input.showPicker) { try { input.showPicker(); } catch (err) {} } };
 
   // Form Handlers
   const handleOpenSheet = () => {
@@ -469,7 +471,6 @@ export default function App() {
             </div>
 
             <section className="mb-10 space-y-4">
-               {/* ☕️ 개발자 후원 버튼 (카카오페이 QR 링크 연동) */}
                <button onClick={() => window.open('https://qr.kakaopay.com/Ej80O3SQW', '_blank')} className="w-full flex items-center justify-center gap-2 py-4.5 bg-[#FEE500] text-[#191919] rounded-[24px] font-black active:scale-95 transition-all shadow-sm">
                  <Coffee size={20} /> 개발자에게 커피 한 잔 사주기
                </button>
@@ -500,12 +501,15 @@ export default function App() {
                 ))}
               </div>
 
-              {/* === 수정 1: 도트, 일기장 탭 날짜 네이티브 셀렉터 적용 === */}
+              {/* === 일별 조회 탭 (도트, 일기장) - 이중 화살표 추가 === */}
               {(viewMode === 'pieces' || viewMode === 'diary') && (
-                <div className="flex items-center justify-between bg-white rounded-[20px] p-2 border border-gray-100 shadow-sm">
-                  <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d); }} className="w-10 h-10 flex items-center justify-center text-gray-400 active:text-indigo-600 transition-all shrink-0"><ChevronLeft size={24}/></button>
+                <div className="flex items-center justify-between bg-white rounded-[20px] p-1.5 sm:p-2 border border-gray-100 shadow-sm">
+                  <div className="flex items-center">
+                    <button onClick={() => { const d = new Date(selectedDate); d.setMonth(d.getMonth()-1); setSelectedDate(d); }} className="p-2 text-gray-300 hover:text-indigo-600 transition-all shrink-0"><ChevronsLeft size={20}/></button>
+                    <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d); }} className="p-2 text-gray-400 hover:text-indigo-600 transition-all shrink-0"><ChevronLeft size={24}/></button>
+                  </div>
                   
-                  <div className="relative flex flex-col items-center justify-center cursor-pointer px-4 py-1 group flex-1">
+                  <div className="relative flex flex-col items-center justify-center cursor-pointer px-1 sm:px-2 group flex-1">
                     <input 
                       type="date" 
                       value={getLocalDateString(selectedDate)} 
@@ -516,12 +520,15 @@ export default function App() {
                       {getLocalDateString(selectedDate) === getLocalDateString(new Date()) ? 'Today' : 'Select Date'}
                     </span>
                     <div className="flex items-center gap-1">
-                      <span className="text-lg font-black text-gray-800 tracking-tight whitespace-nowrap">{formatDate(selectedDate)}</span>
-                      <ChevronDown size={16} className="text-gray-400 group-hover:text-indigo-500 shrink-0 transition-colors" />
+                      <span className="text-[16px] sm:text-lg font-black text-gray-800 tracking-tight whitespace-nowrap">{formatDate(selectedDate)}</span>
+                      <ChevronDown size={14} className="text-gray-400 group-hover:text-indigo-500 shrink-0 transition-colors" />
                     </div>
                   </div>
 
-                  <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d); }} className="w-10 h-10 flex items-center justify-center text-gray-400 active:text-indigo-600 transition-all shrink-0"><ChevronRight size={24}/></button>
+                  <div className="flex items-center">
+                    <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d); }} className="p-2 text-gray-400 hover:text-indigo-600 transition-all shrink-0"><ChevronRight size={24}/></button>
+                    <button onClick={() => { const d = new Date(selectedDate); d.setMonth(d.getMonth()+1); setSelectedDate(d); }} className="p-2 text-gray-300 hover:text-indigo-600 transition-all shrink-0"><ChevronsRight size={20}/></button>
+                  </div>
                 </div>
               )}
             </div>
@@ -606,11 +613,14 @@ export default function App() {
                   </div>
                   <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-xl shadow-indigo-50/20">
                     
-                    {/* === 수정 2: 달력 탭 연월 텍스트 강제 한 줄 고정 === */}
+                    {/* === 월별 조회 탭 (달력) - 이중 화살표 추가 === */}
                     <div className="flex justify-between items-center mb-10 px-1 sm:px-2">
-                      <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()-1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300 shrink-0"><ChevronLeft size={28}/></button>
+                      <div className="flex items-center">
+                        <button onClick={() => { const d = new Date(calendarMonth); d.setFullYear(d.getFullYear()-1); setCalendarMonth(d); }} className="p-1.5 sm:p-2 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300 shrink-0"><ChevronsLeft size={24}/></button>
+                        <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()-1); setCalendarMonth(d); }} className="p-1.5 sm:p-2 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-400 shrink-0"><ChevronLeft size={28}/></button>
+                      </div>
                       
-                      <div className="relative flex items-center justify-center cursor-pointer px-2 py-2 group flex-1">
+                      <div className="relative flex items-center justify-center cursor-pointer px-1 py-2 group flex-1">
                         <input 
                           type="month" 
                           value={`${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}`}
@@ -625,12 +635,15 @@ export default function App() {
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" 
                         />
                         <div className="flex items-center gap-1 sm:gap-1.5 group-hover:text-indigo-600 transition-colors">
-                          <h3 className="font-black text-xl sm:text-[22px] tracking-tighter whitespace-nowrap">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
-                          <ChevronDown size={20} className="text-gray-400 group-hover:text-indigo-500 shrink-0" />
+                          <h3 className="font-black text-lg sm:text-[22px] tracking-tighter whitespace-nowrap">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
+                          <ChevronDown size={18} className="text-gray-400 group-hover:text-indigo-500 shrink-0" />
                         </div>
                       </div>
 
-                      <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()+1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300 shrink-0"><ChevronRight size={28}/></button>
+                      <div className="flex items-center">
+                        <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()+1); setCalendarMonth(d); }} className="p-1.5 sm:p-2 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-400 shrink-0"><ChevronRight size={28}/></button>
+                        <button onClick={() => { const d = new Date(calendarMonth); d.setFullYear(d.getFullYear()+1); setCalendarMonth(d); }} className="p-1.5 sm:p-2 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300 shrink-0"><ChevronsRight size={24}/></button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={`text-[12px] font-black ${d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300 uppercase'}`}>{d}</div>)}</div>
@@ -666,7 +679,6 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* === 수정 3: 통계 탭 기간설정 잘림 방지용 투명 오버레이 적용 === */}
                   {statsPeriod === 'custom' && (
                     <div className="flex items-center gap-2 sm:gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm animate-in fade-in zoom-in-95 duration-200">
                       
@@ -824,7 +836,6 @@ export default function App() {
                       ))}
                     </div>
                     
-                    {/* === 보너스 수정: 작성 시트 내부 날짜/시간 선택기 잘림 방지 패치 === */}
                     {timeMode !== 'none' && (
                       <div className="bg-gray-50 p-4 rounded-[28px] border border-gray-100 space-y-3">
                         <div className="relative flex justify-center items-center bg-white rounded-2xl shadow-sm border border-gray-100 py-3.5 px-4 group hover:border-indigo-200 transition-colors">
