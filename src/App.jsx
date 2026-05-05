@@ -24,15 +24,14 @@ import {
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 // --- [중요] 실제 본인의 파이어베이스 정보로 교체하세요 ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCeGzssX8tPn2tsFyBw9kGSBWUDOskC-1I",
-  authDomain: "my-slip-app.firebaseapp.com",
-  projectId: "my-slip-app",
-  storageBucket: "my-slip-app.firebasestorage.app",
-  messagingSenderId: "171448664939",
-  appId: "1:171448664939:web:42c1846f1caccfc403822e"
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
-
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -124,6 +123,11 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
+  // 커스텀 연/월 선택기 모달 상태
+  const [pickerState, setPickerState] = useState({ isOpen: false, target: null });
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
+  const [showYearSelector, setShowYearSelector] = useState(false);
+
   // 필터, 검색, 통계
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategory, setSearchCategory] = useState('all');
@@ -189,19 +193,20 @@ export default function App() {
   }, [user, calendarCategory]);
 
   // 모바일 뒤로가기 제어 로직
-  const stateRef = useRef({ viewMode, isSheetOpen, isManagingCategories, legalModal });
+  const stateRef = useRef({ viewMode, isSheetOpen, isManagingCategories, legalModal, isPickerOpen: pickerState.isOpen });
   useEffect(() => {
-    stateRef.current = { viewMode, isSheetOpen, isManagingCategories, legalModal };
-  }, [viewMode, isSheetOpen, isManagingCategories, legalModal]);
+    stateRef.current = { viewMode, isSheetOpen, isManagingCategories, legalModal, isPickerOpen: pickerState.isOpen };
+  }, [viewMode, isSheetOpen, isManagingCategories, legalModal, pickerState.isOpen]);
 
   useEffect(() => {
     if (!user) return; 
 
     const handlePopState = (e) => {
-      const { viewMode, isSheetOpen, isManagingCategories, legalModal } = stateRef.current;
+      const { viewMode, isSheetOpen, isManagingCategories, legalModal, isPickerOpen } = stateRef.current;
       let intercepted = false;
 
-      if (legalModal) { setLegalModal(null); intercepted = true; } 
+      if (isPickerOpen) { setPickerState({ isOpen: false, target: null }); intercepted = true; }
+      else if (legalModal) { setLegalModal(null); intercepted = true; } 
       else if (isSheetOpen) { setIsSheetOpen(false); intercepted = true; } 
       else if (isManagingCategories) { setIsManagingCategories(false); intercepted = true; } 
       else if (viewMode !== 'pieces') { setViewMode('pieces'); intercepted = true; }
@@ -247,6 +252,26 @@ export default function App() {
   };
 
   const triggerPicker = (e) => { const input = e.currentTarget.querySelector('input'); if (input && input.showPicker) { try { input.showPicker(); } catch (err) {} } };
+
+  // --- 커스텀 날짜 선택기 핸들러 ---
+  const openPicker = (target, currentDate) => {
+    setPickerState({ isOpen: true, target });
+    setPickerYear(currentDate.getFullYear());
+    setShowYearSelector(false);
+  };
+
+  const closePicker = () => setPickerState({ isOpen: false, target: null });
+
+  const handleMonthSelect = (monthIndex) => {
+    if (pickerState.target === 'calendarMonth') {
+        setCalendarMonth(new Date(pickerYear, monthIndex, 1));
+    } else if (pickerState.target === 'selectedDate') {
+        const d = new Date(selectedDate);
+        d.setFullYear(pickerYear, monthIndex);
+        setSelectedDate(d);
+    }
+    closePicker();
+  };
 
   // Form Handlers
   const handleOpenSheet = () => {
@@ -501,7 +526,7 @@ export default function App() {
                 ))}
               </div>
 
-              {/* === 일별 조회 탭 (도트, 일기장) - 이중 화살표 추가 === */}
+              {/* === 일별 조회 탭 (도트, 일기장) - 커스텀 픽커 트리거 적용 === */}
               {(viewMode === 'pieces' || viewMode === 'diary') && (
                 <div className="flex items-center justify-between bg-white rounded-[20px] p-1.5 sm:p-2 border border-gray-100 shadow-sm">
                   <div className="flex items-center">
@@ -509,13 +534,7 @@ export default function App() {
                     <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d); }} className="p-2 text-gray-400 hover:text-indigo-600 transition-all shrink-0"><ChevronLeft size={24}/></button>
                   </div>
                   
-                  <div className="relative flex flex-col items-center justify-center cursor-pointer px-1 sm:px-2 group flex-1">
-                    <input 
-                      type="date" 
-                      value={getLocalDateString(selectedDate)} 
-                      onChange={(e) => e.target.value && setSelectedDate(new Date(e.target.value))} 
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" 
-                    />
+                  <div className="relative flex flex-col items-center justify-center cursor-pointer px-1 sm:px-2 group flex-1" onClick={() => openPicker('selectedDate', selectedDate)}>
                     <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-0.5">
                       {getLocalDateString(selectedDate) === getLocalDateString(new Date()) ? 'Today' : 'Select Date'}
                     </span>
@@ -613,27 +632,14 @@ export default function App() {
                   </div>
                   <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-xl shadow-indigo-50/20">
                     
-                    {/* === 월별 조회 탭 (달력) - 이중 화살표 추가 === */}
+                    {/* === 월별 조회 탭 (달력) - 커스텀 픽커 트리거 적용 === */}
                     <div className="flex justify-between items-center mb-10 px-1 sm:px-2">
                       <div className="flex items-center">
                         <button onClick={() => { const d = new Date(calendarMonth); d.setFullYear(d.getFullYear()-1); setCalendarMonth(d); }} className="p-1.5 sm:p-2 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300 shrink-0"><ChevronsLeft size={24}/></button>
                         <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()-1); setCalendarMonth(d); }} className="p-1.5 sm:p-2 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-400 shrink-0"><ChevronLeft size={28}/></button>
                       </div>
                       
-                      <div className="relative flex items-center justify-center cursor-pointer px-1 py-2 group flex-1">
-                        <input 
-                          type="month" 
-                          value={`${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}`}
-                          onChange={(e) => {
-                            if(e.target.value) {
-                              const [y, m] = e.target.value.split('-');
-                              const d = new Date(calendarMonth);
-                              d.setFullYear(parseInt(y), parseInt(m) - 1);
-                              setCalendarMonth(d);
-                            }
-                          }} 
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" 
-                        />
+                      <div className="relative flex items-center justify-center cursor-pointer px-1 py-2 group flex-1" onClick={() => openPicker('calendarMonth', calendarMonth)}>
                         <div className="flex items-center gap-1 sm:gap-1.5 group-hover:text-indigo-600 transition-colors">
                           <h3 className="font-black text-lg sm:text-[22px] tracking-tighter whitespace-nowrap">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
                           <ChevronDown size={18} className="text-gray-400 group-hover:text-indigo-500 shrink-0" />
@@ -896,6 +902,71 @@ export default function App() {
                   </div>
                 )}
              </div>
+          </div>
+        )}
+
+        {/* --- [신규 기능] 퀵 연도/월 커스텀 픽커 모달 --- */}
+        {pickerState.isOpen && (
+          <div className="absolute inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in">
+            <div className="bg-white rounded-[36px] p-6 w-full max-w-[340px] shadow-2xl animate-in zoom-in-95 duration-200">
+              
+              <div className="flex justify-between items-center mb-6 px-2">
+                <button 
+                  onClick={() => showYearSelector ? setPickerYear(y => y - 10) : setPickerYear(y => y - 1)} 
+                  className="p-3 bg-gray-50 text-gray-500 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                >
+                  <ChevronLeft size={24}/>
+                </button>
+                <button 
+                  onClick={() => setShowYearSelector(!showYearSelector)} 
+                  className="text-[22px] font-black tracking-tighter flex items-center gap-1 hover:text-indigo-600 transition-colors"
+                >
+                  {showYearSelector ? `${Math.floor(pickerYear/10)*10}년대` : `${pickerYear}년`}
+                  <ChevronDown size={20} className={`text-gray-400 transition-transform ${showYearSelector ? 'rotate-180' : ''}`}/>
+                </button>
+                <button 
+                  onClick={() => showYearSelector ? setPickerYear(y => y + 10) : setPickerYear(y => y + 1)} 
+                  className="p-3 bg-gray-50 text-gray-500 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                >
+                  <ChevronRight size={24}/>
+                </button>
+              </div>
+
+              {showYearSelector ? (
+                // 연도 선택 그리드 (현재 연도 기준 12년치)
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  {Array.from({length: 12}, (_, i) => Math.floor(pickerYear/10)*10 - 1 + i).map(y => (
+                    <button
+                      key={y}
+                      onClick={() => { setPickerYear(y); setShowYearSelector(false); }}
+                      className={`py-4 rounded-2xl font-black text-lg transition-all ${y === pickerYear ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'}`}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                // 월 선택 그리드
+                <div className="grid grid-cols-4 gap-3 mb-6">
+                  {Array.from({length: 12}, (_, i) => i + 1).map(m => {
+                    const isCurrent = pickerState.target === 'calendarMonth' 
+                      ? (calendarMonth.getMonth() === m - 1 && calendarMonth.getFullYear() === pickerYear) 
+                      : (selectedDate.getMonth() === m - 1 && selectedDate.getFullYear() === pickerYear);
+                    return (
+                      <button
+                        key={m}
+                        onClick={() => handleMonthSelect(m - 1)}
+                        className={`py-4 rounded-2xl font-black text-[16px] transition-all ${isCurrent ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'}`}
+                      >
+                        {m}월
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              
+              <button onClick={closePicker} className="w-full py-4 bg-gray-100 text-gray-600 rounded-[20px] font-black text-lg hover:bg-gray-200 transition-colors active:scale-95">닫기</button>
+            </div>
           </div>
         )}
 
