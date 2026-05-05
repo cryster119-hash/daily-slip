@@ -31,7 +31,7 @@ const firebaseConfig = {
   storageBucket: "my-slip-app.firebasestorage.app",
   messagingSenderId: "171448664939",
   appId: "1:171448664939:web:42c1846f1caccfc403822e"
-}; 
+};
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -181,6 +181,57 @@ export default function App() {
     });
     return () => { unsubEntries(); unsubCats(); };
   }, [user, calendarCategory]);
+
+  // --- [신규 기능] 모바일 뒤로가기(하드웨어 백버튼) 제어 로직 ---
+  // 현재 열려있는 창의 상태를 실시간으로 참조하기 위해 useRef 사용
+  const stateRef = useRef({ viewMode, isSheetOpen, isManagingCategories, legalModal });
+  useEffect(() => {
+    stateRef.current = { viewMode, isSheetOpen, isManagingCategories, legalModal };
+  }, [viewMode, isSheetOpen, isManagingCategories, legalModal]);
+
+  useEffect(() => {
+    if (!user) return; // 로그인 전에는 제어하지 않음
+
+    const handlePopState = (e) => {
+      const { viewMode, isSheetOpen, isManagingCategories, legalModal } = stateRef.current;
+      let intercepted = false;
+
+      // 1. 법적 고지 모달이 열려있다면 닫기
+      if (legalModal) {
+        setLegalModal(null);
+        intercepted = true;
+      } 
+      // 2. 작성/수정 시트가 열려있다면 닫기
+      else if (isSheetOpen) {
+        setIsSheetOpen(false);
+        intercepted = true;
+      } 
+      // 3. 환경 설정창이 열려있다면 닫기
+      else if (isManagingCategories) {
+        setIsManagingCategories(false);
+        intercepted = true;
+      } 
+      // 4. 메인 뷰(도트)가 아닌 다른 탭을 보고 있다면 메인으로 돌아가기
+      else if (viewMode !== 'pieces') {
+        setViewMode('pieces');
+        intercepted = true;
+      }
+
+      if (intercepted) {
+        // 무언가 열려있는 창을 닫았다면, 다음 뒤로가기에도 앱이 꺼지지 않도록 히스토리를 다시 채워넣음
+        window.history.pushState(null, '', window.location.href);
+      } else {
+        // 모든 창이 닫혀있고 기본 홈 화면일 때는 자연스럽게 앱이 종료되도록 둠
+      }
+    };
+
+    // 앱 마운트 시 초기 트랩(가짜 히스토리) 설치
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [user]);
+  // --------------------------------------------------------
 
   // Helpers
   const getLocalDateString = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
