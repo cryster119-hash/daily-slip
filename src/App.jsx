@@ -33,11 +33,12 @@ const firebaseConfig = {
   appId: "1:171448664939:web:42c1846f1caccfc403822e"
 };
 
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
-const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "daily-pieces-v1"; // 앱 데이터 그룹 식별자
+const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "daily-pieces-v1";
 
 const AVAILABLE_COLORS = [
   'bg-blue-100 text-blue-600 border-blue-200',
@@ -127,7 +128,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategory, setSearchCategory] = useState('all');
   const [calendarCategory, setCalendarCategory] = useState(defaultCategories[0].id);
-  const [statsPeriod, setStatsPeriod] = useState('month'); // week, month, year, custom
+  const [statsPeriod, setStatsPeriod] = useState('month');
   const [statsStartDate, setStatsStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return getLocalDateString(d); });
   const [statsEndDate, setStatsEndDate] = useState(getLocalDateString(new Date()));
 
@@ -244,8 +245,6 @@ export default function App() {
     const iconObj = AVAILABLE_ICONS.find(i => i.name === cat.iconName) || AVAILABLE_ICONS[5];
     return { ...cat, Icon: iconObj.component };
   };
-
-  const triggerPicker = (e) => { const input = e.currentTarget.querySelector('input'); if (input && input.showPicker) { try { input.showPicker(); } catch (err) {} } };
 
   // Form Handlers
   const handleOpenSheet = () => {
@@ -501,15 +500,28 @@ export default function App() {
                 ))}
               </div>
 
+              {/* === 수정 1: 도트, 일기장 탭 날짜 네이티브 셀렉터 적용 === */}
               {(viewMode === 'pieces' || viewMode === 'diary') && (
                 <div className="flex items-center justify-between bg-white rounded-[20px] p-2 border border-gray-100 shadow-sm">
-                  <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d); }} className="w-10 h-10 flex items-center justify-center text-gray-400 active:text-indigo-600 transition-all"><ChevronLeft size={24}/></button>
-                  <div className="relative flex flex-col items-center cursor-pointer px-6 group" onClick={triggerPicker}>
-                    <input type="date" value={getLocalDateString(selectedDate)} onChange={(e) => e.target.value && setSelectedDate(new Date(e.target.value))} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
-                    <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{getLocalDateString(selectedDate) === getLocalDateString(new Date()) ? 'Today' : 'Select Date'}</span>
-                    <span className="text-lg font-black text-gray-800 tracking-tight">{formatDate(selectedDate)}</span>
+                  <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()-1); setSelectedDate(d); }} className="w-10 h-10 flex items-center justify-center text-gray-400 active:text-indigo-600 transition-all shrink-0"><ChevronLeft size={24}/></button>
+                  
+                  <div className="relative flex flex-col items-center justify-center cursor-pointer px-4 py-1 group flex-1">
+                    <input 
+                      type="date" 
+                      value={getLocalDateString(selectedDate)} 
+                      onChange={(e) => e.target.value && setSelectedDate(new Date(e.target.value))} 
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" 
+                    />
+                    <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-0.5">
+                      {getLocalDateString(selectedDate) === getLocalDateString(new Date()) ? 'Today' : 'Select Date'}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-lg font-black text-gray-800 tracking-tight whitespace-nowrap">{formatDate(selectedDate)}</span>
+                      <ChevronDown size={16} className="text-gray-400 group-hover:text-indigo-500 shrink-0 transition-colors" />
+                    </div>
                   </div>
-                  <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d); }} className="w-10 h-10 flex items-center justify-center text-gray-400 active:text-indigo-600 transition-all"><ChevronRight size={24}/></button>
+
+                  <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate()+1); setSelectedDate(d); }} className="w-10 h-10 flex items-center justify-center text-gray-400 active:text-indigo-600 transition-all shrink-0"><ChevronRight size={24}/></button>
                 </div>
               )}
             </div>
@@ -593,11 +605,12 @@ export default function App() {
                     })}
                   </div>
                   <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-xl shadow-indigo-50/20">
-                    <div className="flex justify-between items-center mb-10 px-2">
-                      <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()-1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300"><ChevronLeft size={28}/></button>
+                    
+                    {/* === 수정 2: 달력 탭 연월 텍스트 강제 한 줄 고정 === */}
+                    <div className="flex justify-between items-center mb-10 px-1 sm:px-2">
+                      <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()-1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300 shrink-0"><ChevronLeft size={28}/></button>
                       
-                      {/* --- 네이티브 월/년도 선택기 래퍼 --- */}
-                      <div className="relative flex items-center justify-center cursor-pointer px-4 py-2 group" onClick={triggerPicker}>
+                      <div className="relative flex items-center justify-center cursor-pointer px-2 py-2 group flex-1">
                         <input 
                           type="month" 
                           value={`${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}`}
@@ -611,14 +624,15 @@ export default function App() {
                           }} 
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" 
                         />
-                        <div className="flex items-center gap-1.5 group-hover:text-indigo-600 transition-colors">
-                          <h3 className="font-black text-2xl tracking-tighter">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
-                          <ChevronDown size={20} className="text-gray-400 group-hover:text-indigo-500" />
+                        <div className="flex items-center gap-1 sm:gap-1.5 group-hover:text-indigo-600 transition-colors">
+                          <h3 className="font-black text-xl sm:text-[22px] tracking-tighter whitespace-nowrap">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
+                          <ChevronDown size={20} className="text-gray-400 group-hover:text-indigo-500 shrink-0" />
                         </div>
                       </div>
 
-                      <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()+1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300"><ChevronRight size={28}/></button>
+                      <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()+1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300 shrink-0"><ChevronRight size={28}/></button>
                     </div>
+
                     <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={`text-[12px] font-black ${d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300 uppercase'}`}>{d}</div>)}</div>
                     <div className="grid grid-cols-7 gap-y-5">
                       {calendarDays.map((d,i) => {
@@ -652,18 +666,28 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* 커스텀 날짜 선택기 */}
+                  {/* === 수정 3: 통계 탭 기간설정 잘림 방지용 투명 오버레이 적용 === */}
                   {statsPeriod === 'custom' && (
-                    <div className="flex items-center gap-3 bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm animate-in fade-in zoom-in-95 duration-200">
-                      <div className="relative flex-1 flex items-center bg-gray-50 rounded-xl overflow-hidden" onClick={triggerPicker}>
-                        <CalendarDays size={16} className="absolute left-3 text-indigo-400 pointer-events-none" />
-                        <input type="date" value={statsStartDate} onChange={e => setStatsStartDate(e.target.value)} className="w-full pl-9 pr-3 py-2.5 bg-transparent border-none font-black text-[13px] appearance-none focus:outline-none text-gray-700" />
+                    <div className="flex items-center gap-2 sm:gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                      
+                      <div className="relative flex-1 flex justify-center items-center bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl py-2.5 px-2">
+                        <input type="date" value={statsStartDate} onChange={e => setStatsStartDate(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                        <CalendarDays size={14} className="text-indigo-400 mr-1.5 shrink-0" />
+                        <span className="font-black text-[12px] sm:text-[13px] text-gray-700 whitespace-nowrap tracking-tighter">
+                          {statsStartDate.replace(/-/g, '. ')}
+                        </span>
                       </div>
-                      <span className="text-gray-300 font-black text-sm">~</span>
-                      <div className="relative flex-1 flex items-center bg-gray-50 rounded-xl overflow-hidden" onClick={triggerPicker}>
-                        <CalendarDays size={16} className="absolute left-3 text-indigo-400 pointer-events-none" />
-                        <input type="date" value={statsEndDate} onChange={e => setStatsEndDate(e.target.value)} className="w-full pl-9 pr-3 py-2.5 bg-transparent border-none font-black text-[13px] appearance-none focus:outline-none text-gray-700" />
+                      
+                      <span className="text-gray-300 font-black text-sm shrink-0">~</span>
+                      
+                      <div className="relative flex-1 flex justify-center items-center bg-gray-50 hover:bg-gray-100 transition-colors rounded-xl py-2.5 px-2">
+                        <input type="date" value={statsEndDate} onChange={e => setStatsEndDate(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                        <CalendarDays size={14} className="text-indigo-400 mr-1.5 shrink-0" />
+                        <span className="font-black text-[12px] sm:text-[13px] text-gray-700 whitespace-nowrap tracking-tighter">
+                          {statsEndDate.replace(/-/g, '. ')}
+                        </span>
                       </div>
+                      
                     </div>
                   )}
 
@@ -800,19 +824,23 @@ export default function App() {
                       ))}
                     </div>
                     
+                    {/* === 보너스 수정: 작성 시트 내부 날짜/시간 선택기 잘림 방지 패치 === */}
                     {timeMode !== 'none' && (
                       <div className="bg-gray-50 p-4 rounded-[28px] border border-gray-100 space-y-3">
-                        <div className="relative flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
-                          <div className="pl-5 text-indigo-400"><CalendarDays size={20} /></div>
-                          <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="w-full px-4 py-4 bg-transparent border-none font-black text-[16px] appearance-none focus:outline-none transition-colors" />
+                        <div className="relative flex justify-center items-center bg-white rounded-2xl shadow-sm border border-gray-100 py-3.5 px-4 group hover:border-indigo-200 transition-colors">
+                          <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                          <CalendarDays size={18} className="text-indigo-400 mr-2 shrink-0 group-hover:scale-110 transition-transform" />
+                          <span className="font-black text-[16px] text-gray-800 whitespace-nowrap">{entryDate.replace(/-/g, '. ')}</span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                          <div className="relative flex-1 min-w-[130px] flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
-                            <input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} className="w-full px-3 py-4 bg-transparent border-none font-black text-[16px] appearance-none focus:outline-none text-center" />
+                        <div className="flex items-center gap-3">
+                          <div className="relative flex-1 flex justify-center items-center bg-white rounded-2xl shadow-sm border border-gray-100 py-3.5 px-2 group hover:border-indigo-200 transition-colors">
+                            <input type="time" value={entryTime} onChange={e => setEntryTime(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                            <span className="font-black text-[16px] text-gray-800 whitespace-nowrap">{entryTime}</span>
                           </div>
-                          <span className="text-gray-300 font-black text-lg text-center hidden sm:block">~</span>
-                          <div className="relative flex-1 min-w-[130px] flex items-center bg-white rounded-2xl shadow-sm border border-gray-100" onClick={triggerPicker}>
-                            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-3 py-4 bg-transparent border-none font-black text-[16px] appearance-none focus:outline-none text-center" />
+                          <span className="text-gray-300 font-black text-lg text-center shrink-0">~</span>
+                          <div className="relative flex-1 flex justify-center items-center bg-white rounded-2xl shadow-sm border border-gray-100 py-3.5 px-2 group hover:border-indigo-200 transition-colors">
+                            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                            <span className="font-black text-[16px] text-gray-800 whitespace-nowrap">{endTime}</span>
                           </div>
                         </div>
                       </div>
