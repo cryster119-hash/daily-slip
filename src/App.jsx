@@ -93,7 +93,7 @@ const setupPWA = () => {
   if (typeof document === 'undefined') return;
   const appIconSvg = `<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="512" height="512" rx="112" fill="url(#p1)"/><path d="M160 170H352V210H160V170Z" fill="white"/><path d="M160 250H352V290H160V250Z" fill="white" fill-opacity="0.8"/><path d="M160 330H352V370H160V330Z" fill="white" fill-opacity="0.6"/><defs><linearGradient id="p1" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse"><stop stop-color="#6366F1"/><stop offset="1" stop-color="#4338CA"/></linearGradient></defs></svg>`;
   const iconDataUri = `data:image/svg+xml;base64,${btoa(appIconSvg)}`;
-  const manifest = { "name": "하루 조각", "short_name": "하루조각", "start_url": ".", "display": "standalone", "background_color": "#F9FAFB", "theme_color": "#4F46E5", "icons": [{ "src": iconDataUri, "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }] };
+  const manifest = { "name": "도트 (DOT.)", "short_name": "DOT.", "start_url": ".", "display": "standalone", "background_color": "#F9FAFB", "theme_color": "#4F46E5", "icons": [{ "src": iconDataUri, "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }] };
   
   let mLink = document.querySelector('link[rel="manifest"]');
   if (!mLink) { mLink = document.createElement('link'); mLink.rel = 'manifest'; document.head.appendChild(mLink); }
@@ -187,19 +187,16 @@ export default function App() {
   const formatDate = (ts) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date(ts));
   const formatTime = (ts) => new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ts));
   
-  // 두 시간 사이의 차이를 분 단위로 계산하는 함수
   const calculateDurationInMinutes = (timestamp, endTime, timeMode) => {
     if (timeMode === 'none' || !endTime) return 0;
     const start = new Date(timestamp);
     const [endH, endM] = endTime.split(':').map(Number);
     const end = new Date(start);
     end.setHours(endH, endM, 0, 0);
-    // 종료 시간이 시작 시간보다 빠르면 (예: 밤 11시 시작, 새벽 1시 종료) 자정을 넘긴 것으로 간주하여 1일 추가
     if (end < start) end.setDate(end.getDate() + 1);
     return Math.max(0, Math.round((end - start) / 60000));
   };
 
-  // 분을 'N시간 M분' 텍스트로 변환하는 함수
   const formatDurationStr = (mins) => {
     if (mins === 0) return '0분';
     const h = Math.floor(mins / 60);
@@ -222,18 +219,14 @@ export default function App() {
     setEditingId(null); const now = new Date(); const pad = (n) => n.toString().padStart(2, '0');
     setEntryDate(getLocalDateString(selectedDate)); setEntryTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
     const later = new Date(now.getTime() + 3600000); setEndTime(`${pad(later.getHours())}:${pad(later.getMinutes())}`);
-    setSelectedCategoryId(null); setTitle(''); setContent(''); setTags([]); 
-    setTagInput(''); 
-    setIsSheetOpen(true);
+    setSelectedCategoryId(null); setTitle(''); setContent(''); setTags([]); setTagInput(''); setIsSheetOpen(true);
   };
 
   const handleEditEntry = (entry) => {
     setEditingId(entry.id); const d = new Date(entry.timestamp); const pad = (n) => n.toString().padStart(2, '0');
     setEntryDate(getLocalDateString(d)); setEntryTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
     setEndTime(entry.endTime || ''); setTimeMode(entry.timeMode === 'start' ? 'range' : entry.timeMode || 'range');
-    setSelectedCategoryId(entry.categoryId); setTitle(entry.title || ''); setContent(entry.content || ''); setTags(entry.tags || []); 
-    setTagInput(''); 
-    setIsSheetOpen(true);
+    setSelectedCategoryId(entry.categoryId); setTitle(entry.title || ''); setContent(entry.content || ''); setTags(entry.tags || []); setTagInput(''); setIsSheetOpen(true);
   };
 
   const handleSaveEntry = async () => {
@@ -282,7 +275,7 @@ export default function App() {
       e.tags?.join(", ") || "" 
     ]);
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
-    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", `daily_archive_${getLocalDateString(new Date())}.csv`); document.body.appendChild(link); link.click(); showToast("CSV 백업 완료");
+    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", `DOT_archive_${getLocalDateString(new Date())}.csv`); document.body.appendChild(link); link.click(); showToast("CSV 백업 완료");
   };
 
   // --- Views Computations ---
@@ -334,29 +327,13 @@ export default function App() {
 
     filtered.forEach(e => {
       const duration = calculateDurationInMinutes(e.timestamp, e.endTime, e.timeMode);
-      
-      // 카테고리별 누적 시간 더하기
       catDurations[e.categoryId] = (catDurations[e.categoryId] || 0) + duration;
-      
-      // 태그별 누적 시간 더하기
-      (e.tags || []).forEach(t => {
-        tagDurations[t] = (tagDurations[t] || 0) + duration;
-      });
+      (e.tags || []).forEach(t => { tagDurations[t] = (tagDurations[t] || 0) + duration; });
     });
 
-    // 누적 시간이 0인 항목은 필터링하고 내림차순 정렬
-    const sortedCats = Object.entries(catDurations)
-      .map(([id, duration]) => ({ id, duration, cat: getCategory(id) }))
-      .filter(item => item.duration > 0)
-      .sort((a, b) => b.duration - a.duration);
-      
+    const sortedCats = Object.entries(catDurations).map(([id, duration]) => ({ id, duration, cat: getCategory(id) })).filter(item => item.duration > 0).sort((a, b) => b.duration - a.duration);
     const maxCatDuration = sortedCats.length > 0 ? sortedCats[0].duration : 1;
-
-    const sortedTags = Object.entries(tagDurations)
-      .map(([tag, duration]) => ({ tag, duration }))
-      .filter(item => item.duration > 0)
-      .sort((a, b) => b.duration - a.duration)
-      .slice(0, 10); // 상위 10개 태그만 노출
+    const sortedTags = Object.entries(tagDurations).map(([tag, duration]) => ({ tag, duration })).filter(item => item.duration > 0).sort((a, b) => b.duration - a.duration).slice(0, 10);
 
     return { categories: sortedCats, tags: sortedTags, maxCatDuration };
   }, [entries, statsPeriod, viewMode, categories]);
@@ -365,10 +342,7 @@ export default function App() {
   const topTagsRecommendation = useMemo(() => {
     const tagCounts = {};
     entries.forEach(e => { (e.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }); });
-    return Object.entries(tagCounts)
-      .sort((a, b) => b[1] - a[1]) // 사용 빈도순 정렬
-      .slice(0, 5) // 상위 5개
-      .map(([tag]) => tag);
+    return Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([tag]) => tag);
   }, [entries]);
 
   // --- 렌더링 ---
@@ -384,8 +358,8 @@ export default function App() {
           .font-cute { font-family: 'Jua', sans-serif; }
         `}</style>
         <div className="w-24 h-24 bg-indigo-600 text-white rounded-[32px] flex items-center justify-center shadow-2xl mb-8"><Layers size={48} strokeWidth={2.5}/></div>
-        <h1 className="text-[40px] font-cute tracking-widest text-gray-900 mb-2">하루 조각</h1>
-        <p className="text-gray-400 font-medium mb-12 leading-relaxed">일상의 흩어진 조각들을 모아<br/>나만의 타임라인을 완성해 보세요.</p>
+        <h1 className="text-[44px] font-black tracking-tighter text-gray-900 mb-2">DOT.</h1>
+        <p className="text-gray-400 font-medium mb-12 leading-relaxed">하루를 찍고, 일상을 잇다.<br/>나만의 타임라인을 완성해 보세요.</p>
         <button onClick={handleGoogleLogin} className="w-full max-w-xs flex items-center justify-center gap-4 bg-white border border-gray-200 py-4.5 rounded-2xl font-black text-gray-700 shadow-sm active:scale-95 transition-all hover:bg-gray-50"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" alt="Google"/>구글 계정으로 시작하기</button>
         <button onClick={handleGuestLogin} className="w-full max-w-xs flex items-center justify-center gap-4 bg-transparent py-3 mt-3 rounded-2xl font-bold text-gray-500 hover:bg-gray-200/50 active:scale-95 transition-all">먼저 둘러보기 (게스트)</button>
         {toast && <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[150] animate-in fade-in slide-in-from-top-6 duration-400"><div className={`px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 border ${toast.type === 'success' ? 'bg-white text-indigo-600 border-indigo-100' : 'bg-white text-rose-600 border-rose-100'}`}>{toast.type === 'success' ? <Check size={22} strokeWidth={4}/> : <AlertCircle size={22} strokeWidth={4}/>}<span className="text-[16px] font-black tracking-tight">{toast.message}</span></div></div>}
@@ -408,7 +382,7 @@ export default function App() {
         <header className="bg-white px-6 py-5 border-b border-gray-100 shrink-0 z-30 flex justify-between items-center rounded-b-[32px] shadow-sm relative">
           <div className="flex items-center gap-3">
             <div className="bg-indigo-600 text-white p-2.5 rounded-2xl shadow-lg shadow-indigo-100"><Layers size={20} strokeWidth={2.5}/></div>
-            <div><h1 className="text-[22px] font-cute tracking-wide leading-none text-indigo-950 mt-1">하루 조각</h1><p className="text-[9px] text-gray-400 font-bold tracking-widest uppercase mt-1">Hello, {user.displayName?.split(' ')[0] || 'User'}</p></div>
+            <div><h1 className="text-[22px] font-black tracking-tight leading-none text-indigo-950 mt-1">DOT.</h1><p className="text-[9px] text-gray-400 font-bold tracking-widest uppercase mt-1">Hello, {user.displayName?.split(' ')[0] || 'User'}</p></div>
           </div>
           <div className="flex items-center gap-3">
             {user.photoURL && <img src={user.photoURL} alt="profile" className="w-9 h-9 rounded-full border border-gray-100 shadow-sm" />}
@@ -453,6 +427,11 @@ export default function App() {
             </div>
 
             <section className="mb-10 space-y-4">
+               {/* ☕️ 개발자 후원 버튼 */}
+               <button onClick={() => window.open('https://qr.kakaopay.com/Ej80O3SQW', '_blank')} className="w-full flex items-center justify-center gap-2 py-4.5 bg-[#FEE500] text-[#191919] rounded-[24px] font-black active:scale-95 transition-all shadow-sm">
+                 <Coffee size={20} /> 개발자에게 커피 한 잔 사주기
+               </button>
+               
                <button onClick={exportToCSV} className="w-full flex items-center justify-center gap-3 py-4.5 bg-gray-900 text-white rounded-[24px] font-black active:scale-95 transition-all shadow-xl"><Download size={20}/> 모든 기록 백업하기 (CSV)</button>
                <button onClick={handleLogout} className="w-full flex items-center justify-center gap-3 py-4.5 bg-white border border-gray-200 text-gray-400 rounded-[24px] font-bold active:scale-95 transition-all"><LogOut size={18}/> 로그아웃</button>
             </section>
@@ -497,7 +476,6 @@ export default function App() {
               {/* 뷰: 조각 (타임라인) */}
               {viewMode === 'pieces' && (
                 <>
-                  {/* 불필요한 '오늘 모은 조각 수' 배너 삭제 */}
                   <div className="bg-white rounded-[36px] shadow-sm border border-gray-100 divide-y divide-dashed divide-gray-100 overflow-hidden">
                     {dailyEntries.length === 0 ? (
                       <div className="py-28 text-center text-gray-400 space-y-5">
@@ -598,11 +576,10 @@ export default function App() {
                       })}
                     </div>
                   </div>
-                  {/* 달력 하단에 있던 월별 활동 수 제거됨 (디자인 통일을 위해) */}
                 </div>
               )}
 
-              {/* 뷰: 통계 (누적 시간 고도화) */}
+              {/* 뷰: 통계 */}
               {viewMode === 'stats' && statsData && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 mb-4">
@@ -611,9 +588,6 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* 불필요한 서머리 박스(Total Pieces 등) 삭제됨 */}
-
-                  {/* 카테고리별 누적 활동 시간 바 차트 */}
                   <div className="bg-white rounded-[36px] p-7 border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-2 mb-8">
                       <TrendingUp size={20} className="text-indigo-500" strokeWidth={2.5}/>
@@ -644,7 +618,6 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* 태그(세부 활동)별 누적 시간 리스트 */}
                   <div className="bg-white rounded-[36px] p-7 border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-2 mb-6">
                       <Clock size={20} className="text-amber-500" strokeWidth={2.5}/>
@@ -772,7 +745,6 @@ export default function App() {
                     <div className="bg-gray-50 px-6 py-5 rounded-[32px] space-y-4">
                        <span className="text-[11px] font-black text-gray-400 flex items-center gap-2 uppercase tracking-widest"><Target size={14}/> Tags & Labels</span>
                        
-                       {/* 추천 태그 (많이 쓴 태그 Top 5) */}
                        {topTagsRecommendation.length > 0 && (
                          <div className="flex flex-wrap gap-2 pt-1 pb-2">
                            {topTagsRecommendation.map(t => (
@@ -826,7 +798,7 @@ export default function App() {
              <div className="flex-1 overflow-y-auto text-[16px] text-gray-500 leading-relaxed space-y-10 hide-scrollbar font-medium">
                 {legalModal === 'tos' ? (
                   <div className="space-y-8">
-                    <section><h4 className="font-black text-gray-900 mb-3 text-lg">제1조 (목적)</h4><p>본 약관은 '하루 조각' 앱 서비스의 이용과 관련한 권리 및 의무를 규정합니다.</p></section>
+                    <section><h4 className="font-black text-gray-900 mb-3 text-lg">제1조 (목적)</h4><p>본 약관은 'DOT.' 앱 서비스의 이용과 관련한 권리 및 의무를 규정합니다.</p></section>
                     <section><h4 className="font-black text-gray-900 mb-3 text-lg">제2조 (저작권)</h4><p>모든 디자인, 로직, 브랜드 자산에 대한 권리는 개발자 박근홍에게 있습니다.</p></section>
                     <section><h4 className="font-black text-gray-900 mb-3 text-lg">제3조 (면책)</h4><p>개인 프로젝트로서 최선을 다해 관리하나, 예기치 못한 데이터 손실에 대해서는 복구 책임을 지지 않습니다. 중요 데이터는 백업 기능을 이용해 주세요.</p></section>
                   </div>
@@ -844,3 +816,4 @@ export default function App() {
     </div>
   );
 }
+```eof
