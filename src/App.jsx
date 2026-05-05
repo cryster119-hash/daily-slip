@@ -37,7 +37,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
-const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "daily-pieces-v1"; // 앱 데이터 그룹 식별자
+const APP_ID = typeof __app_id !== 'undefined' ? __app_id : "daily-pieces-v1";
 
 const AVAILABLE_COLORS = [
   'bg-blue-100 text-blue-600 border-blue-200',
@@ -88,11 +88,10 @@ const getTextColor = (colorStr) => {
   return 'text-gray-600';
 };
 
-// PWA 설정
 const setupPWA = () => {
   if (typeof document === 'undefined') return;
   const appIconSvg = `<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="512" height="512" rx="112" fill="url(#p1)"/><path d="M160 170H352V210H160V170Z" fill="white"/><path d="M160 250H352V290H160V250Z" fill="white" fill-opacity="0.8"/><path d="M160 330H352V370H160V330Z" fill="white" fill-opacity="0.6"/><defs><linearGradient id="p1" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse"><stop stop-color="#6366F1"/><stop offset="1" stop-color="#4338CA"/></linearGradient></defs></svg>`;
-  const iconDataUri = `data:image/svg+xml;base64,${btoa(appIconSvg)}`;
+  const iconDataUri = "data:image/svg+xml;base64," + btoa(appIconSvg);
   const manifest = { "name": "도트 (DOT.)", "short_name": "DOT.", "start_url": ".", "display": "standalone", "background_color": "#F9FAFB", "theme_color": "#4F46E5", "icons": [{ "src": iconDataUri, "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }] };
   
   let mLink = document.querySelector('link[rel="manifest"]');
@@ -112,7 +111,6 @@ export default function App() {
   const [entries, setEntries] = useState([]);
   const [toast, setToast] = useState(null);
 
-  // UI 상태
   const [viewMode, setViewMode] = useState('pieces'); 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isManagingCategories, setIsManagingCategories] = useState(false);
@@ -120,13 +118,11 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
-  // 필터, 검색, 통계
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategory, setSearchCategory] = useState('all');
   const [calendarCategory, setCalendarCategory] = useState(defaultCategories[0].id);
-  const [statsPeriod, setStatsPeriod] = useState('month'); // week, month, year, all
+  const [statsPeriod, setStatsPeriod] = useState('month');
 
-  // 작성/수정 폼
   const [editingId, setEditingId] = useState(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
   const [title, setTitle] = useState(''); 
@@ -138,7 +134,6 @@ export default function App() {
   const [entryTime, setEntryTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
-  // 설정 화면 폼
   const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [newCatLabel, setNewCatLabel] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('Hash');
@@ -151,7 +146,6 @@ export default function App() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Auth & Sync
   useEffect(() => {
     setupPWA();
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoadingAuth(false); });
@@ -182,8 +176,7 @@ export default function App() {
     return () => { unsubEntries(); unsubCats(); };
   }, [user, calendarCategory]);
 
-  // Helpers
-  const getLocalDateString = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const getLocalDateString = (d) => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,'0') + "-" + String(d.getDate()).padStart(2,'0');
   const formatDate = (ts) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date(ts));
   const formatTime = (ts) => new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ts));
   
@@ -201,9 +194,9 @@ export default function App() {
     if (mins === 0) return '0분';
     const h = Math.floor(mins / 60);
     const m = mins % 60;
-    if (h > 0 && m > 0) return `${h}시간 ${m}분`;
-    if (h > 0) return `${h}시간`;
-    return `${m}분`;
+    if (h > 0 && m > 0) return h + "시간 " + m + "분";
+    if (h > 0) return h + "시간";
+    return m + "분";
   };
 
   const getCategory = (id) => {
@@ -214,24 +207,23 @@ export default function App() {
 
   const triggerPicker = (e) => { const input = e.currentTarget.querySelector('input'); if (input && input.showPicker) { try { input.showPicker(); } catch (err) {} } };
 
-  // Form Handlers
   const handleOpenSheet = () => {
     setEditingId(null); const now = new Date(); const pad = (n) => n.toString().padStart(2, '0');
-    setEntryDate(getLocalDateString(selectedDate)); setEntryTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
-    const later = new Date(now.getTime() + 3600000); setEndTime(`${pad(later.getHours())}:${pad(later.getMinutes())}`);
+    setEntryDate(getLocalDateString(selectedDate)); setEntryTime(pad(now.getHours()) + ":" + pad(now.getMinutes()));
+    const later = new Date(now.getTime() + 3600000); setEndTime(pad(later.getHours()) + ":" + pad(later.getMinutes()));
     setSelectedCategoryId(null); setTitle(''); setContent(''); setTags([]); setTagInput(''); setIsSheetOpen(true);
   };
 
   const handleEditEntry = (entry) => {
     setEditingId(entry.id); const d = new Date(entry.timestamp); const pad = (n) => n.toString().padStart(2, '0');
-    setEntryDate(getLocalDateString(d)); setEntryTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    setEntryDate(getLocalDateString(d)); setEntryTime(pad(d.getHours()) + ":" + pad(d.getMinutes()));
     setEndTime(entry.endTime || ''); setTimeMode(entry.timeMode === 'start' ? 'range' : entry.timeMode || 'range');
     setSelectedCategoryId(entry.categoryId); setTitle(entry.title || ''); setContent(entry.content || ''); setTags(entry.tags || []); setTagInput(''); setIsSheetOpen(true);
   };
 
   const handleSaveEntry = async () => {
     if (!selectedCategoryId || (!title.trim() && !content.trim()) || !user) return;
-    const ts = new Date(`${entryDate}T${entryTime}:00`).toISOString();
+    const ts = new Date(entryDate + "T" + entryTime + ":00").toISOString();
     const finalTags = [...tags];
     if (tagInput.trim()) { const clean = tagInput.trim().replace(/^#/, ''); if (!finalTags.includes(clean)) finalTags.push(clean); }
     try {
@@ -249,7 +241,7 @@ export default function App() {
 
   const saveCategory = async (e) => {
     e.preventDefault(); if (!newCatLabel.trim() || !user) return;
-    let newList = editingCategoryId ? categories.map(c => c.id === editingCategoryId ? { ...c, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor } : c) : [...categories, { id: `cat_${Date.now()}`, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor }];
+    let newList = editingCategoryId ? categories.map(c => c.id === editingCategoryId ? { ...c, label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor } : c) : [...categories, { id: "cat_" + Date.now(), label: newCatLabel.trim(), iconName: newCatIcon, color: newCatColor }];
     setCategories(newList);
     try { await setDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'settings', 'userCategories'), { list: newList }); setNewCatLabel(''); setEditingCategoryId(null); showToast(editingCategoryId ? "활동이 수정되었습니다" : "새 활동이 추가되었습니다"); } catch (err) { showToast("저장 실패", "error"); }
   };
@@ -274,11 +266,10 @@ export default function App() {
       e.content?.replace(/\n/g, " ") || "", 
       e.tags?.join(", ") || "" 
     ]);
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
-    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", `DOT_archive_${getLocalDateString(new Date())}.csv`); document.body.appendChild(link); link.click(); showToast("CSV 백업 완료");
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers, ...rows].map(r => r.map(c => "\"" + c + "\"").join(",")).join("\n");
+    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); link.setAttribute("download", "DOT_archive_" + getLocalDateString(new Date()) + ".csv"); document.body.appendChild(link); link.click(); showToast("CSV 백업 완료");
   };
 
-  // --- Views Computations ---
   const dailyEntries = useMemo(() => entries.filter(e => getLocalDateString(new Date(e.timestamp)) === getLocalDateString(selectedDate)), [entries, selectedDate]);
   const diaryEntries = useMemo(() => [...dailyEntries].sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp)), [dailyEntries]);
 
@@ -310,7 +301,6 @@ export default function App() {
     return { badge: cat.color.split(' ')[1].replace('text-', 'bg-'), bg: cat.color.split(' ')[0], text: cat.color.split(' ')[1], color: cat.color };
   };
 
-  // --- 누적 시간 통계(Stats) 연산 ---
   const statsData = useMemo(() => {
     if (viewMode !== 'stats') return null;
     const now = new Date();
@@ -338,25 +328,23 @@ export default function App() {
     return { categories: sortedCats, tags: sortedTags, maxCatDuration };
   }, [entries, statsPeriod, viewMode, categories]);
 
-  // --- 추천 태그 (전체 기간 횟수 기준 Top 5) ---
   const topTagsRecommendation = useMemo(() => {
     const tagCounts = {};
     entries.forEach(e => { (e.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }); });
     return Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([tag]) => tag);
   }, [entries]);
 
-  // --- 렌더링 ---
   if (loadingAuth) return <div className="h-screen flex items-center justify-center bg-white"><div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
   if (!user) {
     return (
       <div className="h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-8 text-center">
-        <style>{`
+        <style dangerouslySetInnerHTML={{__html: `
           @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
           @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap');
           * { font-family: 'Pretendard', sans-serif; }
           .font-cute { font-family: 'Jua', sans-serif; }
-        `}</style>
+        `}} />
         <div className="w-24 h-24 bg-indigo-600 text-white rounded-[32px] flex items-center justify-center shadow-2xl mb-8"><Layers size={48} strokeWidth={2.5}/></div>
         <h1 className="text-[44px] font-black tracking-tighter text-gray-900 mb-2">DOT.</h1>
         <p className="text-gray-400 font-medium mb-12 leading-relaxed">하루를 찍고, 일상을 잇다.<br/>나만의 타임라인을 완성해 보세요.</p>
@@ -369,13 +357,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center text-gray-900 p-0 sm:p-4 overflow-hidden selection:bg-indigo-100">
-      <style>{`
+      <style dangerouslySetInnerHTML={{__html: `
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap');
         .hide-scrollbar::-webkit-scrollbar { display: none; } .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; } 
         html, body { overscroll-behavior-y: none; font-family: 'Pretendard', sans-serif; }
         .font-pretendard { font-family: 'Pretendard', sans-serif; } .font-cute { font-family: 'Jua', sans-serif; } .font-diary { font-family: 'Gowun Dodum', sans-serif; }
-      `}</style>
+      `}} />
       
       <div className="w-full max-w-md bg-[#F9FAFB] sm:rounded-[44px] shadow-2xl h-screen sm:h-[850px] overflow-hidden flex flex-col relative sm:border-[10px] border-gray-900 font-pretendard">
         
@@ -401,8 +389,8 @@ export default function App() {
               <h3 className="text-xs font-black text-indigo-500 tracking-wider flex items-center gap-1.5 uppercase"><Sparkles size={14}/> {editingCategoryId ? '활동 수정 (과거 기록 자동 반영)' : '새 활동 추가'}</h3>
               <form onSubmit={saveCategory} className="space-y-5">
                 <input type="text" value={newCatLabel} onChange={e => setNewCatLabel(e.target.value)} placeholder="항목 이름 (예: 명상, 독서)" maxLength={10} className="w-full px-5 py-4 bg-gray-50 rounded-2xl border-none font-bold focus:ring-2 focus:ring-indigo-500 transition-all text-lg" />
-                <div className="flex gap-2.5 flex-wrap">{AVAILABLE_ICONS.map(i => (<button key={i.name} type="button" onClick={() => setNewCatIcon(i.name)} className={`w-11 h-11 flex items-center justify-center rounded-2xl transition-all ${newCatIcon === i.name ? 'bg-indigo-100 text-indigo-600 shadow-inner ring-2 ring-indigo-200 scale-110' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}><i.component size={20}/></button>))}</div>
-                <div className="flex gap-3 flex-wrap">{AVAILABLE_COLORS.map(c => (<button key={c} type="button" onClick={() => setNewCatColor(c)} className={`w-8 h-8 rounded-full border-2 transition-transform ${c.split(' ')[0]} ${newCatColor === c ? 'border-gray-800 scale-125 shadow-lg' : 'border-transparent'}`} />))}</div>
+                <div className="flex gap-2.5 flex-wrap">{AVAILABLE_ICONS.map(i => (<button key={i.name} type="button" onClick={() => setNewCatIcon(i.name)} className={"w-11 h-11 flex items-center justify-center rounded-2xl transition-all " + (newCatIcon === i.name ? "bg-indigo-100 text-indigo-600 shadow-inner ring-2 ring-indigo-200 scale-110" : "bg-gray-50 text-gray-400 hover:bg-gray-100")}><i.component size={20}/></button>))}</div>
+                <div className="flex gap-3 flex-wrap">{AVAILABLE_COLORS.map(c => (<button key={c} type="button" onClick={() => setNewCatColor(c)} className={"w-8 h-8 rounded-full border-2 transition-transform " + c.split(' ')[0] + " " + (newCatColor === c ? "border-gray-800 scale-125 shadow-lg" : "border-transparent")} />))}</div>
                 <div className="flex gap-2">
                   <button type="submit" disabled={!newCatLabel.trim()} className="flex-1 bg-indigo-600 text-white py-4.5 rounded-2xl font-black active:scale-95 transition-all shadow-xl shadow-indigo-100">{editingCategoryId ? '수정하기' : '추가하기'}</button>
                   {editingCategoryId && <button type="button" onClick={() => { setEditingCategoryId(null); setNewCatLabel(''); }} className="px-6 bg-gray-100 text-gray-500 rounded-2xl font-black active:scale-95 transition-all">취소</button>}
@@ -416,7 +404,7 @@ export default function App() {
                 const CatIcon = getCategory(cat.id).Icon;
                 return (
                   <div key={cat.id} className="flex items-center justify-between p-4.5 bg-white border border-gray-100 rounded-[24px] shadow-sm transition-all active:bg-gray-50">
-                    <div className="flex items-center gap-4"><div className={`w-10 h-10 flex items-center justify-center rounded-2xl ${cat.color}`}><CatIcon size={20} strokeWidth={2.5}/></div><span className="font-bold text-gray-800 text-lg">{cat.label}</span></div>
+                    <div className="flex items-center gap-4"><div className={"w-10 h-10 flex items-center justify-center rounded-2xl " + cat.color}><CatIcon size={20} strokeWidth={2.5}/></div><span className="font-bold text-gray-800 text-lg">{cat.label}</span></div>
                     <div className="flex gap-1">
                       <button onClick={() => { setEditingCategoryId(cat.id); setNewCatLabel(cat.label); setNewCatIcon(cat.iconName); setNewCatColor(cat.color); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-2 text-gray-300 hover:text-indigo-500 active:scale-90 transition-all"><Pencil size={20}/></button>
                       <button onClick={() => deleteCategory(cat.id)} className="p-2 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
@@ -452,7 +440,7 @@ export default function App() {
                   { id: 'stats', icon: PieChart, label: '통계' },
                   { id: 'search', icon: Search, label: '검색' }
                 ].map(tab => (
-                  <button key={tab.id} onClick={() => setViewMode(tab.id)} className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] sm:text-[13px] font-black rounded-xl transition-all ${viewMode === tab.id ? 'bg-white text-indigo-900 shadow-sm' : 'text-gray-500'}`}>
+                  <button key={tab.id} onClick={() => setViewMode(tab.id)} className={"flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] sm:text-[13px] font-black rounded-xl transition-all " + (viewMode === tab.id ? "bg-white text-indigo-900 shadow-sm" : "text-gray-500")}>
                     <tab.icon size={16} strokeWidth={2.5}/> <span className="hidden sm:inline">{tab.label}</span>
                   </button>
                 ))}
@@ -489,11 +477,11 @@ export default function App() {
                           <div key={e.id} onClick={() => handleEditEntry(e)} className="p-6 active:bg-gray-50 transition-all cursor-pointer relative group">
                             <div className="flex justify-between items-start mb-4">
                               <div className="flex gap-4">
-                                <div className={`w-12 h-12 rounded-[18px] flex items-center justify-center ${cat.color} shadow-sm border border-white/20`}><cat.Icon size={22} strokeWidth={2.5} /></div>
+                                <div className={"w-12 h-12 rounded-[18px] flex items-center justify-center shadow-sm border border-white/20 " + cat.color}><cat.Icon size={22} strokeWidth={2.5} /></div>
                                 <div>
                                   <div className="text-[11px] font-black text-gray-400 uppercase tracking-tighter">{cat.label}</div>
                                   <div className="text-[14px] font-mono font-bold text-indigo-500 mt-0.5">
-                                    {formatTime(e.timestamp)} {e.endTime && `~ ${e.endTime}`}
+                                    {formatTime(e.timestamp)} {e.endTime && "~ " + e.endTime}
                                   </div>
                                 </div>
                               </div>
@@ -525,7 +513,7 @@ export default function App() {
                           <div key={e.id} onClick={() => handleEditEntry(e)} className="relative cursor-pointer group active:scale-[0.98] transition-transform">
                             <div className="absolute -left-[31px] top-2 w-4 h-4 rounded-full bg-amber-400 border-4 border-[#FFFCF5] shadow-md group-hover:scale-125 transition-transform" />
                             <div className="text-[13px] font-black text-amber-600/70 font-mono mb-2.5 uppercase tracking-widest font-pretendard">
-                              {formatTime(e.timestamp)} {e.endTime && `— ${e.endTime}`} <span className="mx-1">•</span> {e.title || getCategory(e.categoryId).label}
+                              {formatTime(e.timestamp)} {e.endTime && "— " + e.endTime} <span className="mx-1">•</span> {e.title || getCategory(e.categoryId).label}
                             </div>
                             <p className="text-[17px] text-gray-700 leading-loose font-diary font-bold">{e.content}</p>
                           </div>
@@ -542,7 +530,7 @@ export default function App() {
                     {categories.map(c => {
                       const CatIcon = getCategory(c.id).Icon;
                       return (
-                        <button key={c.id} onClick={() => setCalendarCategory(c.id)} className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-black border transition-all ${calendarCategory === c.id ? `${c.color} border-transparent ring-2 ring-indigo-200 shadow-md` : 'bg-white text-gray-500 border-gray-200 shadow-sm hover:bg-gray-50'}`}>
+                        <button key={c.id} onClick={() => setCalendarCategory(c.id)} className={"flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-black border transition-all " + (calendarCategory === c.id ? c.color + " border-transparent ring-2 ring-indigo-200 shadow-md" : "bg-white text-gray-500 border-gray-200 shadow-sm hover:bg-gray-50")}>
                           <CatIcon size={14} strokeWidth={2.5}/>
                           {c.label}
                         </button>
@@ -555,7 +543,7 @@ export default function App() {
                       <h3 className="font-black text-2xl tracking-tighter">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
                       <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()+1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300"><ChevronRight size={28}/></button>
                     </div>
-                    <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={`text-[12px] font-black ${d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300 uppercase'}`}>{d}</div>)}</div>
+                    <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={"text-[12px] font-black uppercase " + (d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300')}>{d}</div>)}</div>
                     <div className="grid grid-cols-7 gap-y-5">
                       {calendarDays.map((d,i) => {
                         if (!d) return <div key={i} className="h-12" />;
@@ -563,14 +551,14 @@ export default function App() {
                         const isToday = getLocalDateString(d) === getLocalDateString(new Date());
                         const isSelected = getLocalDateString(d) === getLocalDateString(selectedDate);
                         return (
-                          <button key={i} onClick={() => { setSelectedDate(d); setViewMode('pieces'); }} className={`h-12 relative flex items-center justify-center group rounded-2xl transition-all ${isSelected?'bg-indigo-50/70 shadow-inner':''}`}>
+                          <button key={i} onClick={() => { setSelectedDate(d); setViewMode('pieces'); }} className={"h-12 relative flex items-center justify-center group rounded-2xl transition-all " + (isSelected ? "bg-indigo-50/70 shadow-inner" : "")}>
                             {catStatus && (
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <div className={`w-10 h-10 rounded-full ${catStatus.color.split(' ')[0]} shadow-sm group-hover:scale-110 transition-transform`} />
-                                <div className={`absolute -top-1 -right-1 w-5.5 h-5.5 rounded-full ${getSolidColor(catStatus.color)} border-2 border-white flex items-center justify-center shadow-md`}><Check size={12} strokeWidth={4} className="text-white" /></div>
+                                <div className={"w-10 h-10 rounded-full shadow-sm group-hover:scale-110 transition-transform " + catStatus.color.split(' ')[0]} />
+                                <div className={"absolute -top-1 -right-1 w-5.5 h-5.5 rounded-full border-2 border-white flex items-center justify-center shadow-md " + getSolidColor(catStatus.color)}><Check size={12} strokeWidth={4} className="text-white" /></div>
                               </div>
                             )}
-                            <span className={`text-[16px] font-black z-10 transition-colors ${catStatus ? getTextColor(catStatus.color) : (isToday ? 'text-indigo-600 ring-2 ring-indigo-100 rounded-full w-9 h-9 flex items-center justify-center' : 'text-gray-700')}`}>{d.getDate()}</span>
+                            <span className={"text-[16px] font-black z-10 transition-colors " + (catStatus ? getTextColor(catStatus.color) : (isToday ? "text-indigo-600 ring-2 ring-indigo-100 rounded-full w-9 h-9 flex items-center justify-center" : "text-gray-700"))}>{d.getDate()}</span>
                           </button>
                         );
                       })}
@@ -584,7 +572,7 @@ export default function App() {
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 mb-4">
                     {[{ id: 'week', label: '최근 7일' }, { id: 'month', label: '이번 달' }, { id: 'year', label: '올해' }, { id: 'all', label: '전체' }].map(p => (
-                      <button key={p.id} onClick={() => setStatsPeriod(p.id)} className={`flex-1 py-2.5 text-[13px] font-black rounded-xl transition-all ${statsPeriod === p.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}>{p.label}</button>
+                      <button key={p.id} onClick={() => setStatsPeriod(p.id)} className={"flex-1 py-2.5 text-[13px] font-black rounded-xl transition-all " + (statsPeriod === p.id ? "bg-indigo-600 text-white shadow-md" : "text-gray-400 hover:bg-gray-50")}>{p.label}</button>
                     ))}
                   </div>
 
@@ -603,13 +591,13 @@ export default function App() {
                             <div key={item.id} className="relative">
                               <div className="flex justify-between items-end mb-3">
                                 <div className="flex items-center gap-2">
-                                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${item.cat.color} shadow-sm border border-white/20`}><CatIcon size={16} strokeWidth={2.5}/></div>
+                                  <div className={"w-8 h-8 rounded-xl flex items-center justify-center shadow-sm border border-white/20 " + item.cat.color}><CatIcon size={16} strokeWidth={2.5}/></div>
                                   <span className="text-[15px] font-black text-gray-800">{item.cat.label}</span>
                                 </div>
                                 <span className="text-[15px] font-bold text-gray-500">{formatDurationStr(item.duration)}</span>
                               </div>
                               <div className="h-4 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
-                                <div className={`h-full rounded-full ${bgSolid} transition-all duration-1000 ease-out`} style={{ width: `${width}%` }} />
+                                <div className={"h-full rounded-full transition-all duration-1000 ease-out " + bgSolid} style={{ width: width + "%" }} />
                               </div>
                             </div>
                           );
@@ -627,7 +615,7 @@ export default function App() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {statsData.tags.map(t => (
                           <div key={t.tag} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-[20px] px-5 py-4 shadow-sm hover:bg-white transition-colors">
-                            <span className="text-[15px] font-black text-indigo-600 mr-2">#{t.tag}</span>
+                            <span className="text-[15px] font-black text-indigo-600 mr-2">{"#" + t.tag}</span>
                             <span className="bg-white border border-gray-200 text-gray-500 text-[13px] font-bold px-3 py-1.5 rounded-lg shadow-sm">
                               {formatDurationStr(t.duration)}
                             </span>
@@ -644,11 +632,11 @@ export default function App() {
                 <div className="space-y-8">
                   <div className="relative"><Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300" size={22} strokeWidth={3}/><input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="기록 제목, 태그, 본문 검색" className="w-full pl-14 pr-8 py-5 bg-white rounded-[28px] shadow-xl font-black border-none focus:ring-2 focus:ring-indigo-500 transition-all text-lg" /></div>
                   <div className="flex flex-wrap gap-2 pt-2 pb-4 px-1">
-                    <button onClick={() => setSearchCategory('all')} className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-black transition-all ${searchCategory === 'all' ? 'bg-gray-900 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200 shadow-sm hover:bg-gray-50'}`}>전체보기</button>
+                    <button onClick={() => setSearchCategory('all')} className={"flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-black transition-all " + (searchCategory === 'all' ? "bg-gray-900 text-white shadow-md" : "bg-white text-gray-500 border border-gray-200 shadow-sm hover:bg-gray-50")}>전체보기</button>
                     {categories.map(c => {
                       const CatIcon = getCategory(c.id).Icon;
                       return (
-                        <button key={c.id} onClick={() => setSearchCategory(c.id)} className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-black border transition-all ${searchCategory === c.id ? `${c.color} border-transparent shadow-md ring-2 ring-indigo-200` : 'bg-white text-gray-500 border-gray-200 shadow-sm hover:bg-gray-50'}`}>
+                        <button key={c.id} onClick={() => setSearchCategory(c.id)} className={"flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-black border transition-all " + (searchCategory === c.id ? c.color + " border-transparent shadow-md ring-2 ring-indigo-200" : "bg-white text-gray-500 border-gray-200 shadow-sm hover:bg-gray-50")}>
                           <CatIcon size={14} strokeWidth={2.5}/>
                           {c.label}
                         </button>
@@ -663,7 +651,7 @@ export default function App() {
                           const cat = getCategory(item.categoryId);
                           return (
                             <div key={item.id} onClick={() => handleEditEntry(item)} className="p-6 flex gap-5 hover:bg-gray-50 active:bg-gray-50 transition-all cursor-pointer relative group">
-                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${cat.color} shadow-sm border border-white/20`}><cat.Icon size={22} strokeWidth={2.5}/></div>
+                              <div className={"w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border border-white/20 " + cat.color}><cat.Icon size={22} strokeWidth={2.5}/></div>
                               <div className="flex-1 min-w-0"><div className="text-[17px] font-black text-gray-800 truncate leading-snug tracking-tight">{item.title || "무제"}</div><p className="text-[14px] text-gray-500 line-clamp-1 mt-1 font-medium">{item.content}</p></div>
                               <button onClick={(ev) => handleDeleteEntry(ev, item.id)} className="p-2 text-gray-300 hover:text-red-500 active:scale-90 transition-all"><Trash2 size={20}/></button>
                             </div>
@@ -702,7 +690,7 @@ export default function App() {
                    {categories.map(c => {
                      const CatIcon = getCategory(c.id).Icon;
                      return (
-                       <button key={c.id} onClick={() => setSelectedCategoryId(c.id)} className={`flex items-center gap-2 px-5 py-3 rounded-full text-[15px] font-black border transition-all ${selectedCategoryId === c.id ? `${c.color} border-transparent ring-2 ring-indigo-500 shadow-lg scale-105` : 'bg-white text-gray-500 border-gray-200 shadow-sm hover:bg-gray-50'}`}>
+                       <button key={c.id} onClick={() => setSelectedCategoryId(c.id)} className={"flex items-center gap-2 px-5 py-3 rounded-full text-[15px] font-black border transition-all " + (selectedCategoryId === c.id ? c.color + " border-transparent ring-2 ring-indigo-500 shadow-lg scale-105" : "bg-white text-gray-500 border-gray-200 shadow-sm hover:bg-gray-50")}>
                          <CatIcon size={16} strokeWidth={2.5}/>
                          {c.label}
                        </button>
@@ -715,7 +703,7 @@ export default function App() {
                   <div className="space-y-7 px-1 pb-10">
                     <div className="flex bg-gray-100 p-2 rounded-[24px]">
                       {[{ id: 'range', label: '시간 설정', icon: ClockArrowUp }, { id: 'none', label: '시간 생략', icon: Zap }].map(m => (
-                        <button key={m.id} onClick={() => setTimeMode(m.id)} className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-[14px] font-black rounded-[20px] transition-all ${timeMode === m.id ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400'}`}>
+                        <button key={m.id} onClick={() => setTimeMode(m.id)} className={"flex-1 flex items-center justify-center gap-2 py-3.5 text-[14px] font-black rounded-[20px] transition-all " + (timeMode === m.id ? "bg-white text-indigo-600 shadow-md" : "text-gray-400")}>
                           <m.icon size={18} strokeWidth={2.5}/> {m.label}
                         </button>
                       ))}
@@ -748,7 +736,7 @@ export default function App() {
                        {topTagsRecommendation.length > 0 && (
                          <div className="flex flex-wrap gap-2 pt-1 pb-2">
                            {topTagsRecommendation.map(t => (
-                             <button key={`rec-${t}`} onClick={() => { if(!tags.includes(t)) setTags([...tags, t]); }} className="text-[13px] font-bold text-gray-500 bg-white border border-gray-200 px-3.5 py-2 rounded-full shadow-sm hover:text-indigo-600 hover:border-indigo-200 transition-all active:scale-95">
+                             <button key={"rec-"+t} onClick={() => { if(!tags.includes(t)) setTags([...tags, t]); }} className="text-[13px] font-bold text-gray-500 bg-white border border-gray-200 px-3.5 py-2 rounded-full shadow-sm hover:text-indigo-600 hover:border-indigo-200 transition-all active:scale-95">
                                + {t}
                              </button>
                            ))}
