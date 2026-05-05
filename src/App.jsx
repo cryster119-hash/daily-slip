@@ -24,13 +24,13 @@ import {
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 // --- [중요] 실제 본인의 파이어베이스 정보로 교체하세요 ---
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+const firebaseConfig = {
+  apiKey: "AIzaSyCeGzssX8tPn2tsFyBw9kGSBWUDOskC-1I",
+  authDomain: "my-slip-app.firebaseapp.com",
+  projectId: "my-slip-app",
+  storageBucket: "my-slip-app.firebasestorage.app",
+  messagingSenderId: "171448664939",
+  appId: "1:171448664939:web:42c1846f1caccfc403822e"
 };
 
 const app = initializeApp(firebaseConfig);
