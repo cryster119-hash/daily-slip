@@ -31,7 +31,7 @@ const firebaseConfig = {
   storageBucket: "my-slip-app.firebasestorage.app",
   messagingSenderId: "171448664939",
   appId: "1:171448664939:web:42c1846f1caccfc403822e"
-};
+}; 
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
