@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Book, Dumbbell, Coffee, Briefcase, Smile, Hash, 
   CalendarDays, Plus, Trash2, Tag as TagIcon, X, Check, 
-  Settings, ChevronLeft, ChevronRight, Cloud, CloudOff,
+  Settings, ChevronLeft, ChevronRight, ChevronDown, Cloud, CloudOff,
   BarChart2, Zap, ClockArrowUp, Layers, Target,
   BookOpen, AlignLeft, Sparkles, Search, Filter, Calendar,
   ShieldCheck, FileText, Pencil, AlertCircle, Download, LogOut,
@@ -104,6 +104,9 @@ const setupPWA = () => {
   aIcon.href = iconDataUri;
 };
 
+// 날짜 포맷 헬퍼
+const getLocalDateString = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -124,7 +127,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategory, setSearchCategory] = useState('all');
   const [calendarCategory, setCalendarCategory] = useState(defaultCategories[0].id);
-  const [statsPeriod, setStatsPeriod] = useState('month'); // week, month, year, all
+  const [statsPeriod, setStatsPeriod] = useState('month'); // week, month, year, custom
+  const [statsStartDate, setStatsStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return getLocalDateString(d); });
+  const [statsEndDate, setStatsEndDate] = useState(getLocalDateString(new Date()));
 
   // 작성/수정 폼
   const [editingId, setEditingId] = useState(null);
@@ -182,59 +187,36 @@ export default function App() {
     return () => { unsubEntries(); unsubCats(); };
   }, [user, calendarCategory]);
 
-  // --- [신규 기능] 모바일 뒤로가기(하드웨어 백버튼) 제어 로직 ---
-  // 현재 열려있는 창의 상태를 실시간으로 참조하기 위해 useRef 사용
+  // 모바일 뒤로가기 제어 로직
   const stateRef = useRef({ viewMode, isSheetOpen, isManagingCategories, legalModal });
   useEffect(() => {
     stateRef.current = { viewMode, isSheetOpen, isManagingCategories, legalModal };
   }, [viewMode, isSheetOpen, isManagingCategories, legalModal]);
 
   useEffect(() => {
-    if (!user) return; // 로그인 전에는 제어하지 않음
+    if (!user) return; 
 
     const handlePopState = (e) => {
       const { viewMode, isSheetOpen, isManagingCategories, legalModal } = stateRef.current;
       let intercepted = false;
 
-      // 1. 법적 고지 모달이 열려있다면 닫기
-      if (legalModal) {
-        setLegalModal(null);
-        intercepted = true;
-      } 
-      // 2. 작성/수정 시트가 열려있다면 닫기
-      else if (isSheetOpen) {
-        setIsSheetOpen(false);
-        intercepted = true;
-      } 
-      // 3. 환경 설정창이 열려있다면 닫기
-      else if (isManagingCategories) {
-        setIsManagingCategories(false);
-        intercepted = true;
-      } 
-      // 4. 메인 뷰(도트)가 아닌 다른 탭을 보고 있다면 메인으로 돌아가기
-      else if (viewMode !== 'pieces') {
-        setViewMode('pieces');
-        intercepted = true;
-      }
+      if (legalModal) { setLegalModal(null); intercepted = true; } 
+      else if (isSheetOpen) { setIsSheetOpen(false); intercepted = true; } 
+      else if (isManagingCategories) { setIsManagingCategories(false); intercepted = true; } 
+      else if (viewMode !== 'pieces') { setViewMode('pieces'); intercepted = true; }
 
       if (intercepted) {
-        // 무언가 열려있는 창을 닫았다면, 다음 뒤로가기에도 앱이 꺼지지 않도록 히스토리를 다시 채워넣음
         window.history.pushState(null, '', window.location.href);
-      } else {
-        // 모든 창이 닫혀있고 기본 홈 화면일 때는 자연스럽게 앱이 종료되도록 둠
       }
     };
 
-    // 앱 마운트 시 초기 트랩(가짜 히스토리) 설치
     window.history.pushState(null, '', window.location.href);
     window.addEventListener('popstate', handlePopState);
 
     return () => window.removeEventListener('popstate', handlePopState);
   }, [user]);
-  // --------------------------------------------------------
 
   // Helpers
-  const getLocalDateString = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const formatDate = (ts) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date(ts));
   const formatTime = (ts) => new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(ts));
   
@@ -365,11 +347,18 @@ export default function App() {
   const statsData = useMemo(() => {
     if (viewMode !== 'stats') return null;
     const now = new Date();
+    
+    // 기간 설정에 맞게 필터링
     const filtered = entries.filter(e => {
       const d = new Date(e.timestamp);
       if (statsPeriod === 'week') { const weekAgo = new Date(); weekAgo.setDate(now.getDate() - 7); return d >= weekAgo && d <= now; }
       if (statsPeriod === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       if (statsPeriod === 'year') return d.getFullYear() === now.getFullYear();
+      if (statsPeriod === 'custom') {
+        const start = new Date(`${statsStartDate}T00:00:00`);
+        const end = new Date(`${statsEndDate}T23:59:59`);
+        return d >= start && d <= end;
+      }
       return true;
     });
 
@@ -387,7 +376,7 @@ export default function App() {
     const sortedTags = Object.entries(tagDurations).map(([tag, duration]) => ({ tag, duration })).filter(item => item.duration > 0).sort((a, b) => b.duration - a.duration).slice(0, 10);
 
     return { categories: sortedCats, tags: sortedTags, maxCatDuration };
-  }, [entries, statsPeriod, viewMode, categories]);
+  }, [entries, statsPeriod, viewMode, categories, statsStartDate, statsEndDate]);
 
   // --- 추천 태그 (전체 기간 횟수 기준 Top 5) ---
   const topTagsRecommendation = useMemo(() => {
@@ -491,7 +480,7 @@ export default function App() {
             </section>
             <footer className="mt-auto py-10 border-t border-gray-200 flex flex-col items-center gap-5 text-center">
               <div className="flex gap-8"><button onClick={() => setLegalModal('tos')} className="text-xs font-bold text-gray-400 active:text-indigo-600">이용약관</button><button onClick={() => setLegalModal('privacy')} className="text-xs font-bold text-gray-400 active:text-indigo-600">개인정보 처리방침</button></div>
-              <p className="text-[10px] text-gray-300 font-mono tracking-tighter uppercase">© 2026 Park Geunhong. Cloud Synced.</p>
+              <p className="text-[10px] text-gray-300 font-mono tracking-tighter uppercase">© 2026 DOT. Cloud Synced.</p>
             </footer>
           </div>
         ) : (
@@ -606,7 +595,28 @@ export default function App() {
                   <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-xl shadow-indigo-50/20">
                     <div className="flex justify-between items-center mb-10 px-2">
                       <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()-1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300"><ChevronLeft size={28}/></button>
-                      <h3 className="font-black text-2xl tracking-tighter">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
+                      
+                      {/* --- 네이티브 월/년도 선택기 래퍼 --- */}
+                      <div className="relative flex items-center justify-center cursor-pointer px-4 py-2 group" onClick={triggerPicker}>
+                        <input 
+                          type="month" 
+                          value={`${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}`}
+                          onChange={(e) => {
+                            if(e.target.value) {
+                              const [y, m] = e.target.value.split('-');
+                              const d = new Date(calendarMonth);
+                              d.setFullYear(parseInt(y), parseInt(m) - 1);
+                              setCalendarMonth(d);
+                            }
+                          }} 
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" 
+                        />
+                        <div className="flex items-center gap-1.5 group-hover:text-indigo-600 transition-colors">
+                          <h3 className="font-black text-2xl tracking-tighter">{calendarMonth.getFullYear()}년 {calendarMonth.getMonth()+1}월</h3>
+                          <ChevronDown size={20} className="text-gray-400 group-hover:text-indigo-500" />
+                        </div>
+                      </div>
+
                       <button onClick={() => { const d = new Date(calendarMonth); d.setMonth(d.getMonth()+1); setCalendarMonth(d); }} className="p-3 hover:bg-gray-50 rounded-full active:scale-90 transition-all text-gray-300"><ChevronRight size={28}/></button>
                     </div>
                     <div className="grid grid-cols-7 gap-1 text-center mb-6">{['일','월','화','수','목','금','토'].map(d => <div key={d} className={`text-[12px] font-black ${d==='일'?'text-rose-300':d==='토'?'text-sky-300':'text-gray-300 uppercase'}`}>{d}</div>)}</div>
@@ -636,18 +646,33 @@ export default function App() {
               {/* 뷰: 통계 */}
               {viewMode === 'stats' && statsData && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 mb-4">
-                    {[{ id: 'week', label: '최근 7일' }, { id: 'month', label: '이번 달' }, { id: 'year', label: '올해' }, { id: 'all', label: '전체' }].map(p => (
+                  <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 mb-2">
+                    {[{ id: 'week', label: '최근 7일' }, { id: 'month', label: '이번 달' }, { id: 'year', label: '올해' }, { id: 'custom', label: '기간 설정' }].map(p => (
                       <button key={p.id} onClick={() => setStatsPeriod(p.id)} className={`flex-1 py-2.5 text-[13px] font-black rounded-xl transition-all ${statsPeriod === p.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}>{p.label}</button>
                     ))}
                   </div>
+
+                  {/* 커스텀 날짜 선택기 */}
+                  {statsPeriod === 'custom' && (
+                    <div className="flex items-center gap-3 bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                      <div className="relative flex-1 flex items-center bg-gray-50 rounded-xl overflow-hidden" onClick={triggerPicker}>
+                        <CalendarDays size={16} className="absolute left-3 text-indigo-400 pointer-events-none" />
+                        <input type="date" value={statsStartDate} onChange={e => setStatsStartDate(e.target.value)} className="w-full pl-9 pr-3 py-2.5 bg-transparent border-none font-black text-[13px] appearance-none focus:outline-none text-gray-700" />
+                      </div>
+                      <span className="text-gray-300 font-black text-sm">~</span>
+                      <div className="relative flex-1 flex items-center bg-gray-50 rounded-xl overflow-hidden" onClick={triggerPicker}>
+                        <CalendarDays size={16} className="absolute left-3 text-indigo-400 pointer-events-none" />
+                        <input type="date" value={statsEndDate} onChange={e => setStatsEndDate(e.target.value)} className="w-full pl-9 pr-3 py-2.5 bg-transparent border-none font-black text-[13px] appearance-none focus:outline-none text-gray-700" />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="bg-white rounded-[36px] p-7 border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-2 mb-8">
                       <TrendingUp size={20} className="text-indigo-500" strokeWidth={2.5}/>
                       <h3 className="text-[16px] font-black text-gray-800">카테고리별 누적 시간</h3>
                     </div>
-                    {statsData.categories.length === 0 ? <div className="py-10 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">기록이 없습니다</div> : (
+                    {statsData.categories.length === 0 ? <div className="py-10 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">해당 기간의 기록이 없습니다</div> : (
                       <div className="space-y-6">
                         {statsData.categories.map((item) => {
                           const width = Math.max(10, (item.duration / (statsData.maxCatDuration || 1)) * 100);
@@ -677,7 +702,7 @@ export default function App() {
                       <Clock size={20} className="text-amber-500" strokeWidth={2.5}/>
                       <h3 className="text-[16px] font-black text-gray-800">태그(세부)별 누적 시간</h3>
                     </div>
-                    {statsData.tags.length === 0 ? <div className="py-10 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">태그 기록이 없습니다</div> : (
+                    {statsData.tags.length === 0 ? <div className="py-10 text-center text-gray-300 font-bold text-xs uppercase tracking-widest">해당 기간의 태그 기록이 없습니다</div> : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {statsData.tags.map(t => (
                           <div key={t.tag} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-[20px] px-5 py-4 shadow-sm hover:bg-white transition-colors">
@@ -853,7 +878,7 @@ export default function App() {
                 {legalModal === 'tos' ? (
                   <div className="space-y-8">
                     <section><h4 className="font-black text-gray-900 mb-3 text-lg">제1조 (목적)</h4><p>본 약관은 'DOT.' 앱 서비스의 이용과 관련한 권리 및 의무를 규정합니다.</p></section>
-                    <section><h4 className="font-black text-gray-900 mb-3 text-lg">제2조 (저작권)</h4><p>모든 디자인, 로직, 브랜드 자산에 대한 권리는 개발자 박근홍에게 있습니다.</p></section>
+                    <section><h4 className="font-black text-gray-900 mb-3 text-lg">제2조 (저작권)</h4><p>모든 디자인, 로직, 브랜드 자산에 대한 권리는 'DOT.' 개발진에게 있습니다.</p></section>
                     <section><h4 className="font-black text-gray-900 mb-3 text-lg">제3조 (면책)</h4><p>개인 프로젝트로서 최선을 다해 관리하나, 예기치 못한 데이터 손실에 대해서는 복구 책임을 지지 않습니다. 중요 데이터는 백업 기능을 이용해 주세요.</p></section>
                   </div>
                 ) : (
